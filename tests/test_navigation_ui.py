@@ -57,3 +57,12 @@ def test_navigation_javascript_syntax():
     if not shutil.which("node"):
         pytest.skip("Node.js not available")
     subprocess.run(["node", "--check", str(STATIC / "navigation.js")], check=True, timeout=15)
+
+
+def test_navigation_interaction_contract():
+    if not shutil.which("node"):
+        pytest.skip("Node.js not available")
+    subprocess.run(
+        ["node", str(Path(__file__).with_name("navigation_behavior_check.js"))],
+        check=True, timeout=15,
+    )
