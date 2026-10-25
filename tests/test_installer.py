@@ -103,3 +103,27 @@ def test_env_parser_never_executes_shell_and_rejects_traversal():
     assert install.assign("A=old\n", "A", "new") == "A=new\n"
     with pytest.raises(RuntimeError, match="Duplicate"):
         install.assign("A=1\nA=2\n", "A", "new")
+
+
+def test_offline_root_key_blocks_auto_start(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch, existing_env="CA_KEY_PASSWORD='knownPassword123'\n")
+    root = tmp_path / "secrets" / "offline"
+    root.mkdir(parents=True)
+    (root / "root-key.pem").write_text("offline root key must leave the server", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["install.py"])
+    # The guard must trigger before attempting a Docker start.
+    monkeypatch.setattr(install, "run",
+                        lambda *args, **kwargs: pytest.fail("Must not run Docker with Root key on host"))
+    with pytest.raises(RuntimeError, match="Offline Root CA private key"):
+        install.main()
+
+
+def test_no_forced_recreate_for_idempotent_restart(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch, existing_env="CA_KEY_PASSWORD='knownPassword123'\n")
+    commands = []
+    monkeypatch.setattr(sys, "argv", ["install.py"])
+    monkeypatch.setattr(install, "run", lambda *args, **kwargs: commands.append(args))
+    monkeypatch.setattr(install, "check_health", lambda: True)
+    assert install.main() == 0
+    assert ("docker", "compose", "up", "-d", "--build", "api") in commands
+    assert all("--force-recreate" not in cmd for cmd in commands)
