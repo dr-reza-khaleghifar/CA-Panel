@@ -120,10 +120,10 @@ def read_env_values(path: Path) -> dict[str, str]:
     Single quotes preserve literal $ characters; this is intended for the
     installer/CA creation profile, not as a full Docker Compose parser.
     """
-    if not path.exists():
-        return {}
     if path.is_symlink():
         raise ValueError("Refusing symlink .env file")
+    if not path.exists():
+        return {}
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         item = line.strip()
