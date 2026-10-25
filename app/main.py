@@ -127,9 +127,233 @@ def init_db(db_path: Path) -> None:
 def load_issuer(ca_dir: Path, password: str):
     if not password:
         raise RuntimeError("CA_KEY_PASSWORD must be set; never commit this secret")
-    key = serialization.load_pem_private_key(
-        (ca_dir / "issuer-key.pem").read_bytes(), password=password.encode("utf-8")
+    try:
+        key = serialization.load_pem_private_key(
+            (ca_dir / "issuer-key.pem").read_bytes(), password=password.encode("utf-8")
+        )
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(
+            "Cannot decrypt Issuing CA private key (issuer-key.pem). "
+            "Check that CA_KEY_PASSWORD matches the 'Issuing CA' passphrase "
+            "used during scripts/init_ca.py (not the Root CA passphrase), "
+            "that Docker Compose did not interpolate characters such as '
+    issuer = x509.load_pem_x509_certificate((ca_dir / "issuer-cert.pem").read_bytes())
+    root = x509.load_pem_x509_certificate((ca_dir / "root-cert.pem").read_bytes())
+    key_public = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    cert_public = issuer.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    if key_public != cert_public:
+        raise RuntimeError("Issuer private key does not match issuer certificate")
+    if issuer.issuer != root.subject or not issuer.extensions.get_extension_for_class(x509.BasicConstraints).value.ca:
+        raise RuntimeError("Invalid issuing CA certificate")
+    now = datetime.now(timezone.utc)
+    if now < issuer.not_valid_before_utc or now >= issuer.not_valid_after_utc:
+        raise RuntimeError("Issuing CA certificate has expired or is not yet valid")
+    return key, issuer, root
+
+
+def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certificate) -> x509.Certificate:
+    try:
+        csr = x509.load_pem_x509_csr(csr_pem.encode("ascii"))
+        if not csr.is_signature_valid:
+            raise ValueError("CSR signature is invalid")
+        names = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        if len(names) != 1 or normalize_domain(names[0].value) != domain:
+            raise ValueError("CSR Common Name must match the verified domain")
+        try:
+            san = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+            if san.get_values_for_type(x509.DNSName) != [domain] or len(san) != 1:
+                raise ValueError("CSR SAN must contain only the verified domain")
+        except x509.ExtensionNotFound:
+            pass
+        public = csr.public_key()
+        if isinstance(public, rsa.RSAPublicKey):
+            if public.key_size < 2048:
+                raise ValueError("RSA keys must be at least 2048 bits")
+        elif isinstance(public, ec.EllipticCurvePublicKey):
+            if not isinstance(public.curve, (ec.SECP256R1, ec.SECP384R1)):
+                raise ValueError("Only P-256 and P-384 EC keys are supported")
+        else:
+            raise ValueError("CSR must use an RSA or P-256/P-384 public key")
+    except (ValueError, TypeError, UnicodeError, x509.DuplicateExtension) as exc:
+        raise ValueError(f"Invalid CSR: {exc}") from exc
+
+    now = datetime.now(timezone.utc)
+    end = min(now + timedelta(days=30), issuer.not_valid_after_utc - timedelta(minutes=5))
+    if end <= now + timedelta(days=1):
+        raise ValueError("Issuer CA expires too soon; rotate it")
+    return (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, domain)]))
+        .issuer_name(issuer.subject)
+        .public_key(public)
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(minutes=5))
+        .not_valid_after(end)
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(x509.SubjectAlternativeName([x509.DNSName(domain)]), critical=False)
+        .add_extension(x509.KeyUsage(digital_signature=True, content_commitment=False, key_encipherment=isinstance(public, rsa.RSAPublicKey), data_encipherment=False, key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False), critical=True)
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(public), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer.public_key()), critical=False)
+        .sign(key, hashes.SHA256())
     )
+
+
+def client_address(request: Request, settings: Settings) -> str:
+    if settings.trust_proxy_headers:
+        # Only turn this on when *all* incoming requests pass through a trusted proxy.
+        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return request.client.host if request.client else "unknown"
+
+
+def public_view(row: sqlite3.Row) -> dict:
+    result = {
+        "request_id": row["id"], "domain": row["domain"],
+        "dns_name": "_ca-panel." + row["domain"],
+        "dns_value": "ca-panel-verification=" + row["token"],
+        "expires_at": row["expires_at"],
+        "verified": row["verified_at"] is not None,
+        "issued": row["issued_at"] is not None,
+    }
+    if row["issued_at"] is not None:
+        result["serial_hex"] = row["serial_hex"]
+    return result
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        init_db(settings.db_path)
+        app.state.ca = load_issuer(settings.ca_dir, settings.ca_key_password)
+        if not hasattr(app.state, "dns_checker"):
+            app.state.dns_checker = dns_has_challenge
+        yield
+
+    app = FastAPI(title="CA-Panel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        return response
+
+    @app.get("/", include_in_schema=False)
+    def home():
+        return FileResponse(BASE / "static" / "index.html", media_type="text/html")
+
+    @app.get("/healthz")
+    def healthz():
+        return {"status": "ok"}
+
+    @app.get("/api/ca.pem")
+    def root_certificate():
+        _, _, root = app.state.ca
+        return PlainTextResponse(root.public_bytes(serialization.Encoding.PEM).decode(), media_type="application/x-pem-file")
+
+    @app.post("/api/requests", status_code=201)
+    def new_request(body: DomainInput, request: Request):
+        try:
+            domain = normalize_domain(body.domain)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        now = int(time.time())
+        client_ip = client_address(request, settings)
+        rid, token = secrets.token_urlsafe(24), secrets.token_urlsafe(32)
+        with connect(settings.db_path) as con:
+            con.execute("DELETE FROM challenges WHERE issued_at IS NULL AND expires_at < ?", (now - 604800,))
+            per_ip = con.execute("SELECT COUNT(*) FROM challenges WHERE client_ip=? AND created_at>=?", (client_ip, now - 3600)).fetchone()[0]
+            global_count = con.execute("SELECT COUNT(*) FROM challenges WHERE created_at>=?", (now - 3600,)).fetchone()[0]
+            if per_ip >= settings.max_requests_per_hour or global_count >= settings.max_total_per_hour:
+                raise HTTPException(429, "Rate limit exceeded; try again later")
+            con.execute("INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at) VALUES(?,?,?,?,?,?)", (rid, domain, token, client_ip, now, now + settings.challenge_seconds))
+            row = con.execute("SELECT * FROM challenges WHERE id=?", (rid,)).fetchone()
+        return public_view(row)
+
+    def get_challenge_or_404(rid: str):
+        if len(rid) > 100:
+            raise HTTPException(404, "Request not found")
+        with connect(settings.db_path) as con:
+            row = con.execute("SELECT * FROM challenges WHERE id=?", (rid,)).fetchone()
+        if row is None:
+            raise HTTPException(404, "Request not found")
+        return row
+
+    @app.get("/api/requests/{rid}")
+    def read_request(rid: str):
+        return public_view(get_challenge_or_404(rid))
+
+    @app.post("/api/requests/{rid}/verify")
+    def verify_request(rid: str):
+        row = get_challenge_or_404(rid)
+        now = int(time.time())
+        if row["expires_at"] < now:
+            raise HTTPException(410, "DNS challenge has expired; start a new request")
+        if row["issued_at"] is not None:
+            return public_view(row)
+        with connect(settings.db_path) as con:
+            cur = con.execute("UPDATE challenges SET verification_attempts=verification_attempts+1 WHERE id=? AND verification_attempts<?", (rid, settings.max_verifications))
+            if cur.rowcount == 0:
+                raise HTTPException(429, "Too many verification attempts")
+        if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
+            raise HTTPException(422, "Expected TXT record was not found; check DNS propagation")
+        with connect(settings.db_path) as con:
+            con.execute("UPDATE challenges SET verified_at=? WHERE id=?", (now, rid))
+        return public_view(get_challenge_or_404(rid))
+
+    @app.post("/api/requests/{rid}/issue", status_code=201)
+    def issue_request(rid: str, body: CsrInput):
+        row = get_challenge_or_404(rid)
+        now = int(time.time())
+        if row["expires_at"] < now:
+            raise HTTPException(410, "Challenge expired")
+        if row["issued_at"] is not None:
+            raise HTTPException(409, "Certificate already issued for this request")
+        if row["verified_at"] is None:
+            raise HTTPException(403, "Verify DNS ownership first")
+        # Re-check at signing time; a previously verified token is not indefinite authority.
+        if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
+            raise HTTPException(403, "DNS proof no longer exists; restore TXT record")
+        key, issuer, root = app.state.ca
+        try:
+            cert = certificate_for_domain(row["domain"], body.csr_pem, key, issuer)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+        chain_pem = issuer.public_bytes(serialization.Encoding.PEM).decode() + root.public_bytes(serialization.Encoding.PEM).decode()
+        with connect(settings.db_path) as con:
+            cur = con.execute("UPDATE challenges SET issued_at=?, cert_pem=?, serial_hex=? WHERE id=? AND issued_at IS NULL", (now, cert_pem, format(cert.serial_number, "x"), rid))
+            if cur.rowcount != 1:
+                raise HTTPException(409, "Certificate already issued")
+        return {"domain": row["domain"], "certificate_pem": cert_pem, "chain_pem": chain_pem, "fullchain_pem": cert_pem + chain_pem, "expires_at": cert.not_valid_after_utc.isoformat(), "serial_hex": format(cert.serial_number, "x")}
+
+    @app.get("/api/requests/{rid}/certificate")
+    def download_certificate(rid: str):
+        row = get_challenge_or_404(rid)
+        if not row["cert_pem"]:
+            raise HTTPException(404, "Certificate not yet issued")
+        _, issuer, root = app.state.ca
+        pem = row["cert_pem"] + issuer.public_bytes(serialization.Encoding.PEM).decode() + root.public_bytes(serialization.Encoding.PEM).decode()
+        return PlainTextResponse(pem, media_type="application/x-pem-file", headers={"Content-Disposition": f'attachment; filename="{row["domain"]}-fullchain.pem"'})
+
+    return app
+
+
+app = create_app()
+, "
+            "and that the mounted online key is the expected file. "
+            "See docs/OPERATIONS.md. Never disclose your passphrase."
+        ) from exc
     issuer = x509.load_pem_x509_certificate((ca_dir / "issuer-cert.pem").read_bytes())
     root = x509.load_pem_x509_certificate((ca_dir / "root-cert.pem").read_bytes())
     key_public = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)

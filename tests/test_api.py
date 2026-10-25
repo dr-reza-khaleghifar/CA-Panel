@@ -89,3 +89,15 @@ def test_security_headers(client):
     assert r.status_code == 200
     assert 'frame-ancestors' in r.headers['content-security-policy']
     assert r.headers['cache-control'] == 'no-store'
+
+
+def test_incorrect_issuer_passphrase_gives_actionable_error(tmp_path):
+    create_ca(tmp_path / "secrets", b"long-root-test-passphrase", b"long-issuer-test-passphrase")
+    settings = Settings(
+        db_path=tmp_path / "data" / "panel.db",
+        ca_dir=tmp_path / "secrets" / "online",
+        ca_key_password="incorrect-passphrase",
+    )
+    with pytest.raises(RuntimeError, match="Issuing CA"):
+        with TestClient(create_app(settings)):
+            pass

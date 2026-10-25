@@ -46,3 +46,33 @@ openssl x509 -in secrets/online/root-cert.pem -noout -fingerprint -sha256
 - DNS verification requests count against a one-hour challenge lifetime and a per-request verification attempt limit.
 - Current default certificate lifetime is 30 days; intermediate is 365 days, root is ~10 years.
 - Designed for low-cost pilot/private usage. Conduct an independent security audit before broader deployment.
+
+## Startup fails: `Incorrect password, could not decrypt key`
+
+This means the application cannot decrypt the **online Issuing CA** private key. During `scripts/init_ca.py` you selected **two different passphrases**: Root CA and Issuing CA. `CA_KEY_PASSWORD` must be the **Issuing CA** passphrase only. This issue is unrelated to the website/domain certificate or DNS.
+
+1. On the host, from the CA-Panel directory, verify that the mounted key exists: `ls -l secrets/online/issuer-key.pem`. Do **not** paste the key or passphrase into tickets or chat.
+2. Independently verify the passphrase with OpenSSL (which prompts invisibly, rather than placing the passphrase in command history):
+
+   ```bash
+   openssl pkey -in secrets/online/issuer-key.pem -noout
+   ```
+
+   Enter the **Issuing CA** passphrase from initialization. If OpenSSL cannot decrypt the file, you are using the wrong passphrase or the wrong key file. Restore the original online key and passphrase from a secure backup; **do not regenerate the Root CA or overwrite existing CA files** just to bypass this error.
+3. Edit `.env`, and set `CA_KEY_PASSWORD` to the exact Issuing CA passphrase. Docker Compose interpolates `$` expressions in **unquoted/double-quoted** values. For passwords containing `$` or `#`, use a single-quoted literal value, e.g. `CA_KEY_PASSWORD='example$literal#not-a-real-secret'`. Avoid whitespace outside the quotes. Do not send this file to anybody.
+4. Recreate the service (a simple `docker compose restart` may retain old environment variables):
+
+   ```bash
+   docker compose up -d --force-recreate api
+   docker compose logs --tail=40 api
+   ```
+
+5. If still failing, **without printing the passphrase**, verify that the key and password *inside a Compose-created container* match:
+
+   ```bash
+   docker compose run --rm --no-deps --entrypoint python api -c 'import os; from pathlib import Path; from cryptography.hazmat.primitives import serialization; serialization.load_pem_private_key(Path("/run/ca/issuer-key.pem").read_bytes(), password=os.environ["CA_KEY_PASSWORD"].encode("utf-8")); print("OK: Issuing CA key and configured passphrase match")'
+   ```
+
+If OpenSSL succeeds but the container check fails, inspect `.env` quoting, other shell-exported `CA_KEY_PASSWORD` overrides, and whether `./secrets/online` points to the correct deployment directory. Never run `docker compose config` or `printenv` in shared terminals/logs because they can display secrets. For Docker Compose, exported environment variables override values in `.env`.
+
+Once the check passes, the main application should start with `docker compose up -d --force-recreate api`. If the correct passphrase is permanently lost, encrypted PEM key data cannot be recovered by resetting a setting; restoring from backup or securely rotating the Issuing CA using the offline Root CA is required.

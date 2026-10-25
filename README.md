@@ -107,3 +107,8 @@ python -m pytest -q
 ```
 
 > وضعیت: **MVP**؛ این پروژه **CA عمومی مورد اعتماد مرورگر**، سامانه ACME، CRL/OCSP، سیستم احراز هویت یا سرویس HSM نیست. برای کاربردهای حساس/گسترده نیازمند hardening و بازبینی امنیتی است.
+
+
+## خطای راه‌اندازی `Incorrect password, could not decrypt key`
+
+مقدار `CA_KEY_PASSWORD` باید **رمز Issuing CA** باشد، نه رمز Root CA. در صورت وجود کاراکتر `$` در رمز، مقدار را در `.env` داخل تک‌نقل‌قول قرار دهید تا Compose آن را تغییر ندهد. سپس `docker compose up -d --force-recreate api` را اجرا کنید. برای بررسی امن و بدون نمایش رمز، [بخش Troubleshooting در راهنمای عملیات](docs/OPERATIONS.md#startup-fails-incorrect-password-could-not-decrypt-key) را بخوانید. **کلید یا رمز را برای کسی ارسال نکنید.**
