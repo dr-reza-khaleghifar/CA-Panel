@@ -248,13 +248,25 @@ def main() -> int:
     # On --init-ca, allow the initial key-generation step before requiring Docker.
     check_prerequisites(docker=not (args.no_start or args.init_ca or args.check),
                         crypto=args.init_ca)
-    original = ENV_FILE.read_text(encoding="utf-8") if ENV_FILE.exists() else None
     if ENV_FILE.is_symlink():
         fail(".env must be a normal file, not a symlink")
+    original = ENV_FILE.read_text(encoding="utf-8") if ENV_FILE.exists() else None
     content = original if original is not None else ENV_SAMPLE.read_text(encoding="utf-8")
     if original is None:
         content = assign(content, "APP_UID", str(os.getuid()))
         content = assign(content, "APP_GID", str(os.getgid()))
+        if sys.stdin.isatty() and not args.check:
+            for key, default, question in (
+                ("CA_DISPLAY_NAME", "CA-Panel", "Panel display name"),
+                ("CA_ORGANIZATION", "Private CA", "Organization label"),
+            ):
+                answer = input(f"{question} [{default}]: ").strip()
+                if not answer:
+                    continue
+                if (len(answer) > 100 or any(ord(c) < 32 or ord(c) == 127 for c in answer)
+                        or "'" in answer or "\\" in answer):
+                    fail(f"Invalid {key}: use at most 100 printable characters without quotes/backslashes")
+                content = assign(content, key, "'" + answer + "'")
     values = env_values(content)
     online = configured_path(values.get("CA_ONLINE_HOST_DIR", ""), "./secrets/online")
     data = configured_path(values.get("DATA_HOST_DIR", ""), "./data")
@@ -307,13 +319,16 @@ def main() -> int:
         else:
             info("Existing .env preserved; no password or setting overwritten.")
 
+    if not args.no_start and (ROOT / "secrets" / "offline" / "root-key.pem").is_file():
+        fail("Offline Root CA private key is still inside this project. "
+             "Move secrets/offline/ to protected OFFLINE storage before starting the service.")
     if data.exists() and (data.is_symlink() or not data.is_dir()):
         fail("DATA_HOST_DIR is not a regular directory")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
     if not args.no_start:
         check_prerequisites(docker=True, crypto=False)
         info("Building and launching CA-Panel API with Docker Compose...")
-        run("docker", "compose", "up", "-d", "--build", "--force-recreate", "api")
+        run("docker", "compose", "up", "-d", "--build", "api")
         if not check_health():
             fail("Docker launch requested but /healthz is not healthy. "
                  "Run: docker compose ps && docker compose logs --tail=80 api")
