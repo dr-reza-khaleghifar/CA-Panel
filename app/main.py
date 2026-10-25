@@ -201,9 +201,11 @@ def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certific
         raise ValueError(f"Invalid CSR: {exc}") from exc
 
     now = datetime.now(timezone.utc)
-    end = min(now + timedelta(days=validity_days), issuer.not_valid_after_utc - timedelta(minutes=5))
-    if end <= now + timedelta(days=1):
+    issuer_latest_end = issuer.not_valid_after_utc - timedelta(minutes=5)
+    # Preserve the issuer-rotation safety margin even when a 1-day leaf is requested.
+    if issuer_latest_end <= now + timedelta(days=1):
         raise ValueError("Issuer CA expires too soon; rotate it")
+    end = min(now + timedelta(days=validity_days), issuer_latest_end)
     return (
         x509.CertificateBuilder()
         .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, domain)]))
