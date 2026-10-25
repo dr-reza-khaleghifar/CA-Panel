@@ -10,6 +10,35 @@ const show = id => $(id).classList.remove('hidden');
 const hide = id => $(id).classList.add('hidden');
 const formatFa = date => new Intl.DateTimeFormat('fa-IR', {dateStyle:'medium', timeStyle:'short'}).format(date);
 
+// Fetch only intentionally public CA identity and policy (never secrets or paths).
+async function loadSystemInformation() {
+  try {
+    const data = await api('/api/system');
+    const setLabel = (id, value) => {
+      const el = $(id);
+      if (el && typeof value === 'string') el.textContent = value;
+    };
+    setLabel('ca-topbar-name', data.display_name);
+    setLabel('ca-sidebar-name', data.display_name);
+    setLabel('ca-sidebar-org', data.organization);
+    setLabel('ca-issuer-name', data.issuer_common_name);
+    setLabel('ca-root-name', data.root_common_name);
+    setLabel('ca-root-fingerprint', data.root_sha256);
+    if (Number.isInteger(data.certificate_validity_days)) {
+      setLabel('certificate-validity', data.certificate_validity_days.toLocaleString('fa-IR') + ' روز (حداکثر)');
+    }
+    if (Number.isInteger(data.download_ttl_seconds)) {
+      setLabel('zip-max-age', Math.ceil(data.download_ttl_seconds / 60).toLocaleString('fa-IR') + ' دقیقه');
+    }
+    if (typeof data.display_name === 'string' && data.display_name.trim()) {
+      document.title = data.display_name + ' | صدور گواهی';
+    }
+  } catch (_) {
+    // Public metadata must not block issuance or interfere with one-time ZIP URLs.
+  }
+}
+
+
 function notify(text, success = false) {
   const banner = $('message');
   banner.textContent = text;
@@ -208,3 +237,4 @@ $('theme-toggle').addEventListener('click', () => {
 });
 setInterval(updateTimers, 20000);
 setStage(1);
+loadSystemInformation();
