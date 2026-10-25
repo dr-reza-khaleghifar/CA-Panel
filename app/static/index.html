@@ -6,11 +6,9 @@
   <meta name="description" content="CA-Panel؛ صدور گواهی خصوصی TLS با تأیید مالکیت دامنه و دانلود ایمن فایل‌ها">
   <meta name="theme-color" content="#f5f7fc">
   <title>CA-Panel | پنل صدور گواهی دیجیتال</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap">
-  <link rel="stylesheet" href="/static/style.css?v=3">
-  <link rel="stylesheet" href="/static/v3.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=4">
+  <link rel="stylesheet" href="/static/v3.css?v=4">
+  <link rel="stylesheet" href="/static/v4.css?v=4">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -49,9 +47,9 @@
         </nav>
       </div>
       <div class="sidebar-bottom">
-        <div class="side-info"><span class="side-info-icon"><svg class="icon"><use href="#i-shield"/></svg></span><strong>CA خصوصی سازمانی</strong><p>صدور پس از احراز مالکیت دامنه و با امضای CA شما.</p></div>
+        <div class="side-info"><span class="side-info-icon"><svg class="icon"><use href="#i-shield"/></svg></span><strong>حریم خصوصی، اولویت ما</strong><p>صدور پس از احراز مالکیت دامنه و با امضای CA شما.</p></div>
         <a class="sidebar-docs" href="https://github.com/dr-reza-khaleghifar/CA-Panel#readme" target="_blank" rel="noopener noreferrer"><span>مستندات پروژه</span><svg class="icon"><use href="#i-external"/></svg></a>
-        <div class="sidebar-foot" dir="ltr">CA-Panel <span>·</span> v0.3</div>
+        <div class="sidebar-foot" dir="ltr">CA-Panel <span>·</span> v0.4</div>
       </div>
     </aside>
 
@@ -67,13 +65,17 @@
       <main class="main-content" id="workspace">
         <section class="hero" aria-labelledby="hero-heading">
           <div class="hero-copy">
-            <div class="eyebrow"><span class="eyebrow-dot"></span> پنل صدور گواهی خصوصی · نسخه جدید</div>
-            <h1 id="hero-heading">گواهی اختصاصی،<br><span>ساده‌تر از همیشه.</span></h1>
+            <div class="eyebrow"><span class="eyebrow-dot"></span> زیرساخت اعتماد شما، با تجربه‌ای ساده</div>
+            <h1 id="hero-heading">صدور گواهی،<br><span>به زیباییِ یک کلیک.</span></h1>
             <p>دامنه‌تان را وارد کنید، رکورد DNS را تأیید کنید و فایل‌های گواهی امضاشده را مستقیماً دریافت کنید. ساخت کلید و صدور، خودکار روی سرور انجام می‌شود.</p>
-            <div class="hero-features"><span><svg class="icon"><use href="#i-check"/></svg>صدور خودکار</span><span><svg class="icon"><use href="#i-check"/></svg>تأیید مالکیت DNS</span><span><svg class="icon"><use href="#i-check"/></svg>دانلود امن فایل‌ها</span></div>
+            <div class="hero-features"><span><svg class="icon"><use href="#i-check"/></svg>تأیید دامنه</span><span><svg class="icon"><use href="#i-check"/></svg>امضای اختصاصی</span><span><svg class="icon"><use href="#i-check"/></svg>دریافت فوری فایل‌ها پس از صدور</span></div>
+            <div class="hero-metrics" aria-label="ویژگی‌های صدور"><div><strong dir="ltr">30<span> DAYS</span></strong><small>حداکثر اعتبار گواهی</small></div><span class="metric-rule"></span><div><strong dir="ltr">DNS <span>TXT</span></strong><small>اثبات مالکیت دامنه</small></div><span class="metric-rule"></span><div><strong dir="ltr">ZIP <span>+ PEM</span></strong><small>فایل‌های قابل دانلود</small></div></div>
           </div>
           <div class="hero-art" aria-hidden="true">
             <span class="hero-orbit orbit-one"></span><span class="hero-orbit orbit-two"></span>
+            <div class="hero-grid-ornament"></div>
+            <div class="float-label float-label-top"><svg class="icon"><use href="#i-check"/></svg><span>DOMAIN VERIFIED</span></div>
+            <div class="float-label float-label-bottom"><svg class="icon"><use href="#i-lock"/></svg><span>SECURE DOWNLOAD</span></div>
             <div class="certificate-illustration">
               <div class="certificate-top"><div class="fake-lines"><span></span><span></span></div><span class="cert-tiny-lock"><svg class="icon"><use href="#i-lock"/></svg></span></div>
               <div class="cert-seal"><svg class="icon"><use href="#i-shield"/></svg></div>
@@ -89,8 +91,8 @@
 
         <section class="workspace-card" aria-label="فرآیند صدور گواهی">
           <div class="workspace-heading">
-            <div><div class="section-kicker">ایجاد درخواست</div><h2>گواهی جدید بسازید</h2><p>مراحل زیر را به‌ترتیب دنبال کنید.</p></div>
-            <div class="card-head-badge"><svg class="icon"><use href="#i-shield"/></svg><span>Private CA</span></div>
+            <div><div class="section-kicker">WORKSPACE <span aria-hidden="true">/</span> صدور دیجیتال</div><h2>برای دامنه‌تان گواهی بسازید</h2><p>سه مرحله شفاف، بدون تنظیمات پیچیده یا ساخت دستی CSR.</p></div>
+            <div class="card-head-badge"><svg class="icon"><use href="#i-shield"/></svg><span>PRIVATE CA</span></div>
           </div>
 
           <ol class="steps" aria-label="پیشرفت فرآیند صدور">
@@ -106,7 +108,7 @@
               <label class="field-label" for="domain">آدرس دامنه <span class="required-mark">*</span></label>
               <div class="domain-field"><svg class="icon"><use href="#i-globe"/></svg><input id="domain" name="domain" type="text" required spellcheck="false" dir="ltr" inputmode="url" autocomplete="url" placeholder="example.com" maxlength="2048"></div>
               <div class="field-helper"><svg class="icon"><use href="#i-info"/></svg><span>دامنه کامل یا آدرس https:// پذیرفته می‌شود. IP و Wildcard پشتیبانی نمی‌شوند.</span></div>
-              <div class="form-actions"><button class="btn btn-primary" type="submit" id="domain-submit"><span>ثبت دامنه و ادامه</span><svg class="icon"><use href="#i-arrow"/></svg></button><span class="step-meta">بدون نیاز به ساخت حساب کاربری</span></div>
+              <div class="form-actions"><button class="btn btn-primary" type="submit" id="domain-submit"><span>شروع صدور گواهی</span><svg class="icon"><use href="#i-arrow"/></svg></button><span class="step-meta"><svg class="icon"><use href="#i-shield"/></svg> بدون نیاز به ساخت حساب کاربری</span></div>
             </form>
           </section>
 
@@ -114,7 +116,7 @@
             <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div><div class="step-caption">گام دوم از سه گام</div><h3 id="dns-heading">مالکیت دامنه را تأیید کنید</h3><p>یک رکورد TXT با اطلاعات زیر در DNS دامنه ثبت کنید.</p></div></div>
             <div class="domain-banner"><svg class="icon"><use href="#i-shield"/></svg><span>دامنه در حال تأیید</span><strong id="request-domain" dir="ltr">—</strong></div>
             <div class="dns-instruction"><div class="mini-step">۱</div><p>به پنل مدیریت DNS دامنه بروید و یک رکورد جدید با نوع <strong>TXT</strong> بسازید.</p></div>
-            <div class="dns-record"><div class="record-header"><span>DNS RECORD</span><span class="record-type">TXT</span></div>
+            <div class="dns-record"><div class="record-header"><span>DNS RECORD <i class="record-led" aria-hidden="true"></i></span><span class="record-type">TXT</span></div>
               <div class="record-row"><div class="record-label">نام رکورد (Host)</div><div class="record-value"><code id="dns-name" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-name" aria-label="کپی نام رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
               <div class="record-row"><div class="record-label">مقدار رکورد (Value)</div><div class="record-value"><code id="dns-value" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-value" aria-label="کپی مقدار رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
             </div>
@@ -133,7 +135,7 @@
           <section class="form-stage hidden" id="success-panel" aria-labelledby="success-heading">
             <div class="success-top"><div class="success-mark"><svg class="icon"><use href="#i-check"/></svg></div><div><div class="step-caption success-caption">صدور موفق</div><h3 id="success-heading">گواهی شما آماده است!</h3><p>فایل‌های دامنه <strong id="issued-domain" dir="ltr">—</strong> را از این بخش دریافت کنید.</p></div></div>
             <div class="issued-summary"><div><span>وضعیت</span><strong class="summary-verified"><svg class="icon"><use href="#i-check"/></svg> صادرشده</strong></div><div><span>مدت اعتبار</span><strong>۳۰ روز (حداکثر)</strong></div><div><span>انقضای گواهی</span><strong id="certificate-expiry">—</strong></div></div>
-            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge">محرمانه · یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا ۱۰ دقیقه باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span></div><a id="download-button" href="#" class="btn btn-primary" download><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
+            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge"><svg class="icon"><use href="#i-lock"/></svg> محرمانه · فقط یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا ۱۰ دقیقه باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span></div><a id="download-button" href="#" class="btn btn-primary" download><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
             <div class="files-heading"><h4>فایل‌های گواهی</h4><p>این فایل‌ها کلید خصوصی ندارند و جداگانه قابل دریافت‌اند.</p></div>
             <div class="files-grid">
               <a id="leaf-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>گواهی دامنه</strong><small>certificate.crt</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
