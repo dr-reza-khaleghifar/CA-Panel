@@ -148,3 +148,38 @@ After successful DNS proof, `POST /api/requests/{rid}/issue-server` generates an
 - All individual certificate and CA links are public material; **only ZIP** includes a private key. The ZIP is unencrypted; protect it and set filesystem permission 0600 on the extracted `.key`.
 
 An asynchronous 30-second in-memory sweeper removes expired private ZIPs without requiring another request. Pending ZIPs are also cleared at app shutdown. Python memory is not securely zeroized.
+
+
+## Configure the CA-Panel system via `.env`
+Docker Compose automatically loads the root `.env` file and forwards explicitly allowed settings defined in `compose.yaml`. **Keep your existing .env file** (especially `CA_KEY_PASSWORD`), and append only the keys you want to override, using [`.env.example`](../.env.example) as a reference.
+
+Settings and defaults:
+
+| Environment variable | Purpose and safe range |
+| --- | --- |
+| `CA_DISPLAY_NAME=CA-Panel`, `CA_ORGANIZATION=Private CA` | Public labels displayed in the UI; no cryptographic renaming |
+| `CA_KEY_PASSWORD` | Secret for decrypting the online **Issuing** CA key; never publish |
+| `CA_ONLINE_HOST_DIR=./secrets/online` | Host directory with encrypted Issuing key, Issuing cert, and Root **public** cert, read-only mount |
+| `CA_DIR=/run/ca` | Internal mount point; must match Compose mount |
+| `CA_ISSUER_KEY_FILE=issuer-key.pem`, `CA_ISSUER_CERT_FILE=issuer-cert.pem`, `CA_ROOT_CERT_FILE=root-cert.pem` | PEM **file basenames** within the mount; traversal and absolute paths rejected |
+| `DATA_HOST_DIR=./data`, `DB_PATH=/data/ca-panel.sqlite3` | Writable host directory and container-local SQLite file |
+| `CERT_VALIDITY_DAYS=30` | Leaf certificate validity: 1–30 days, never past Issuing CA expiry |
+| `SERVER_KEY_BITS=2048` | RSA private key size for server-generated keys: 2048, 3072 or 4096 |
+| `CHALLENGE_SECONDS=3600` | DNS challenge validity: 300–86400 seconds |
+| `MAX_REQUESTS_PER_HOUR=20` | Rate limit per IP: 1–1000 |
+| `MAX_TOTAL_PER_HOUR=200` | Global request limit: 1–10000 |
+| `MAX_VERIFICATIONS=10` | DNS verification attempts per request: 1–100 |
+| `DOWNLOAD_TTL_SECONDS=600` | One-time private key ZIP link: 60–600 seconds (no extension beyond 10 minutes) |
+| `MAX_PENDING_DOWNLOADS=100` | At most 1–100 live ZIPs in RAM |
+| `DNS_RESOLVERS`, `TRUST_PROXY_HEADERS`, `PANEL_DOMAIN` | Existing DNS, trusted proxy and HTTPS hosting options |
+
+**Important:** Root/Issuing CA cryptographic names, validity and trust are part of existing X.509 certificates and are **not** changed by editing `.env`. The panel reads and displays those actual values. Never put an offline Root private key into the container; never commit `.env`. Invalid settings fail early on API startup. Changing settings does **not** require re-creating the CA keys; it requires restarting the container.
+
+To apply and verify:
+```bash
+docker compose up -d --build --force-recreate api
+docker compose ps
+curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/api/system
+```
+The last endpoint is public metadata only; `/healthz` remains unchanged. For secret checking, avoid `docker compose config` in shared logs because it may print `CA_KEY_PASSWORD`.

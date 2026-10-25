@@ -77,3 +77,7 @@ You may instead skip the optional font setup: `git pull && docker compose up -d 
 - بخش پرسش‌های متداول با پنل‌های بازشونده اضافه شد. لینک‌های منو به بخش‌های واقعی اشاره می‌کنند؛ هیچ مسیر یا API جعلی اضافه نشده است.
 - فایل‌های `v5.css` و `navigation.js` محلی هستند و با CSP سخت‌گیرانه فعلی کار می‌کنند؛ هیچ وابستگی خارجی یا فونت جدیدی برای Docker build اضافه نشده است.
 - این تغییر فقط UI است و منطق FastAPI، اعتبارسنجی TXT، امضا و دانلود خصوصی ZIP را تغییر نمی‌دهد.
+
+
+## Environment-driven public CA information
+The sidebar and top bar display `CA_DISPLAY_NAME` and `CA_ORGANIZATION` from `GET /api/system`. The Security panel displays the Issuing and Root certificate Common Names and the public Root SHA-256 fingerprint, all sourced from actual mounted PEM files. The issuance success screen reads the configured maximum leaf validity and download-link TTL. UI fields are populated using `textContent`, never injected HTML. The metadata request does not log or persist private ZIP tokens. A failed metadata request does not block issuance.

@@ -135,3 +135,15 @@ python -m pytest -q
 ### رفع مشکل SSL دانلود فونت هنگام Docker Build
 
 اگر ساخت Docker در `urllib.request.urlopen(...Vazirmatn...)` با `CERTIFICATE_VERIFY_FAILED` متوقف شده است، نسخه جدید دیگر در Dockerfile فونت دانلود نمی‌کند و ساخت را متوقف نخواهد کرد. برای فعال‌شدن فونت فارسی محلی، یک بار روی سیستم میزبان `python3 scripts/install_font.py` را اجرا کنید و سپس `docker compose up -d --build --force-recreate api`. اگر TLS میزبان هم معتبر نبود، از `--file` برای فایل دریافت‌شده از مسیر مطمئن استفاده کنید. **گزینه `--insecure` یا غیرفعال‌سازی بررسی SSL مجاز نیست.** [راهنمای کامل](docs/UI.md#fix-for-ssl-certificate_verify_failed-during-docker-font-download).
+
+
+## خواندن اطلاعات و تنظیمات CA از `.env`
+تمام تنظیمات عملیاتی از فایل `.env` توسط Docker Compose به کانتینر فرستاده می‌شوند. مقادیر نمونه و محدودیت‌ها در [`.env.example`](.env.example) هستند. شامل نام نمایشی پنل (`CA_DISPLAY_NAME`)، نام سازمان (`CA_ORGANIZATION`)، آدرس پوشه CA، نام فایل‌های PEM، اعتبار گواهی (`CERT_VALIDITY_DAYS`)، اندازه کلید RSA (`SERVER_KEY_BITS`)، مهلت DNS، محدودیت درخواست و عمر لینک ZIP است. **رمز Issuing CA** همان `CA_KEY_PASSWORD` فعلی است؛ کلیدهای خصوصی باید در فایل‌های امن، خارج از env، باقی بمانند. نام واقعی گواهی‌های Root/Issuer مستقیماً از PEM خوانده می‌شود و تغییر برچسب در .env آن‌ها را تغییر نمی‌دهد. رابط کاربری اطلاعات عمومی و اثر انگشت Root را از `GET /api/system` نمایش می‌دهد.
+
+**برای به‌روزرسانی** بدون بازنویسی تنظیمات محرمانه موجود:
+```bash
+# .env فعلی را حفظ و متغیرهای دلخواه جدید را به آن اضافه کنید.
+docker compose up -d --build --force-recreate api
+curl http://127.0.0.1:8080/api/system
+```
+جزئیات: [راهنمای تنظیمات و امنیت](docs/OPERATIONS.md).
