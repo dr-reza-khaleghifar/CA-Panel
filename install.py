@@ -281,6 +281,14 @@ def main() -> int:
         if online != (ROOT / "secrets" / "online").resolve():
             fail("--init-ca uses the default secrets/online location; "
                  "for custom mounts, create/import your CA manually")
+        # An old DB with a new CA identity would contain unusable issued cert records.
+        if data.exists() and any(
+            f.is_file() for pattern in ("*.sqlite", "*.sqlite3", "*.db")
+            for f in data.glob(pattern)
+        ):
+            fail("Existing CA-Panel database files detected. Refusing to issue a new "
+                 "Root CA identity over old issuance records. Restore your CA or "
+                 "migrate the database explicitly.")
         issuer_password = generate_ca()
         content = assign(content, "CA_KEY_PASSWORD", dotenv_secret(issuer_password))
         write_env(content)
