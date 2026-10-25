@@ -334,12 +334,10 @@ def main() -> int:
             info("Existing .env preserved; no password or setting overwritten.")
 
     offline_dir = ROOT / "secrets" / "offline"
-    if not args.no_start and offline_dir.is_dir() and any(
-        entry.is_file() and (entry.name.endswith("-key.pem") or
-                             entry.name == values.get("CA_ROOT_KEY_FILE", "root-key.pem"))
-        for entry in offline_dir.iterdir()
-    ):
-        fail("Offline Root CA private key is still inside this project. "
+    # Fail closed regardless of the custom CA_ROOT_KEY_FILE basename or a later
+    # change to .env: this entire directory must be removed from a live server.
+    if not args.no_start and offline_dir.is_dir() and any(offline_dir.iterdir()):
+        fail("Offline Root CA material is still inside this project. "
              "Move secrets/offline/ to protected OFFLINE storage before starting the service.")
     if data.exists() and (data.is_symlink() or not data.is_dir()):
         fail("DATA_HOST_DIR is not a regular directory")
