@@ -2,7 +2,7 @@
 # Friendly entry point for the single first-run installer (macOS and Linux).
 # Use 'bash install.sh' or './install.sh'; no password is passed on the command line.
 set -euo pipefail
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -x "$ROOT/.venv/bin/python" ]]; then
     exec "$ROOT/.venv/bin/python" "$ROOT/install.py" "$@"
 fi
