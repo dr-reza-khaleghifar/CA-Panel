@@ -183,3 +183,8 @@ curl http://127.0.0.1:8080/healthz
 curl http://127.0.0.1:8080/api/system
 ```
 The last endpoint is public metadata only; `/healthz` remains unchanged. For secret checking, avoid `docker compose config` in shared logs because it may print `CA_KEY_PASSWORD`.
+
+
+## Automated first-run installer
+
+Use `bash install.sh` for an existing online CA, or `bash install.sh --init-ca` **only on a trusted administrative workstation** to provision a genuinely new Root/Issuer pair. The first-run installer never overwrites keys or an existing `.env`; it refuses partial CA folders, requires two distinct passphrases for new CA generation, writes fresh `.env` with `0600` mode and checks the local `/healthz` endpoint before reporting success. For safety, new CA generation deliberately does not auto-start the panel until the offline Root key has been moved off-server. See [FIRST_RUN.md](FIRST_RUN.md).
