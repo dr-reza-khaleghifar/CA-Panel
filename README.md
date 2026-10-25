@@ -112,3 +112,8 @@ python -m pytest -q
 ## خطای راه‌اندازی `Incorrect password, could not decrypt key`
 
 مقدار `CA_KEY_PASSWORD` باید **رمز Issuing CA** باشد، نه رمز Root CA. در صورت وجود کاراکتر `$` در رمز، مقدار را در `.env` داخل تک‌نقل‌قول قرار دهید تا Compose آن را تغییر ندهد. سپس `docker compose up -d --force-recreate api` را اجرا کنید. برای بررسی امن و بدون نمایش رمز، [بخش Troubleshooting در راهنمای عملیات](docs/OPERATIONS.md#startup-fails-incorrect-password-could-not-decrypt-key) را بخوانید. **کلید یا رمز را برای کسی ارسال نکنید.**
+
+
+## مشکل DNS داخل Docker
+
+اگر رکورد TXT از DNS عمومی قابل مشاهده است ولی `app.dns_debug` در Docker نتیجه `NXDOMAIN` می‌دهد، از گزینه اختیاری `DNS_RESOLVERS=1.1.1.1,1.0.0.1` در فایل `.env` استفاده کنید و کانتینر API را بازسازی کنید. تنظیم پیش‌فرض همچنان از DNS داخلی کانتینر استفاده می‌کند. [دستور تشخیص و راهنمای کامل](docs/OPERATIONS.md#docker-resolver-returns-nxdomain-but-a-public-resolver-finds-the-exact-txt).

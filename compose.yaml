@@ -20,6 +20,7 @@ services:
       CA_DIR: /run/ca
       CA_KEY_PASSWORD: "${CA_KEY_PASSWORD:?Set CA_KEY_PASSWORD in .env}"
       TRUST_PROXY_HEADERS: "${TRUST_PROXY_HEADERS:-0}"
+      DNS_RESOLVERS: "${DNS_RESOLVERS:-}"
     volumes:
       - ./data:/data
       - ./secrets/online:/run/ca:ro

@@ -119,3 +119,40 @@ def test_dns_debug_exact_match_and_chunked_txt():
     assert values == ["ca-panel-verification=abc123"]
     assert error is None
     assert probe_txt("_ca-panel.example.org.", "ca-panel-verification=old-token", Resolver())[0] is False
+
+
+def test_configured_dns_resolver_validation():
+    from app.main import configured_dns_resolver
+
+    resolver = configured_dns_resolver("1.1.1.1, 1.0.0.1")
+    assert resolver.nameservers == ["1.1.1.1", "1.0.0.1"]
+    assert resolver.timeout == 2
+    assert resolver.lifetime == 5
+
+    with pytest.raises(ValueError, match="DNS_RESOLVERS"):
+        configured_dns_resolver("some-public-resolver.invalid")
+    with pytest.raises(ValueError, match="DNS_RESOLVERS"):
+        configured_dns_resolver("1.1.1.1,,8.8.8.8")
+    with pytest.raises(ValueError, match="DNS_RESOLVERS"):
+        configured_dns_resolver("1.1.1.1,8.8.8.8,1.0.0.1,9.9.9.9")
+
+
+def test_dns_verifier_uses_custom_resolver_without_bypassing_txt(monkeypatch):
+    import dns.resolver
+    from app.main import dns_has_challenge
+
+    class TXT:
+        strings = [b"ca-panel-verification=correct-token"]
+
+    observed = []
+
+    def resolve(self, name, rdtype, search=False):
+        observed.append((list(self.nameservers), name, rdtype, search))
+        return [TXT()]
+
+    monkeypatch.setattr(dns.resolver.Resolver, "resolve", resolve)
+    assert dns_has_challenge("_ca-panel.example.org.", "ca-panel-verification=correct-token",
+                             dns_resolvers="1.1.1.1") is True
+    assert dns_has_challenge("_ca-panel.example.org.", "ca-panel-verification=WRONG",
+                             dns_resolvers="1.1.1.1") is False
+    assert observed == [(["1.1.1.1"], "_ca-panel.example.org.", "TXT", False)] * 2

@@ -100,3 +100,30 @@ Interpret the results:
 - **Expired:** Challenges expire after one hour and each has at most ten verification attempts. Create a new request and publish its newly generated token; do not reuse the previous TXT value.
 
 You can also identify the authoritative nameservers using `dig NS example.org +short` and query one of them directly using `dig @<authoritative-nameserver> TXT _ca-panel.example.org +short` from a host with `dig`. Do not share `.env`, private CA keys, or full challenge tokens with third parties.
+
+## Docker resolver returns NXDOMAIN, but a public resolver finds the exact TXT
+
+Docker's `127.0.0.11` is the container DNS stub. If `dig @1.1.1.1 TXT _ca-panel.example.com +short` returns your challenge but the panel reports `NXDOMAIN`, the record may be correct while the DNS upstream used by Docker is stale or differently configured.
+
+**Confirm from within the API container without changing any certificate policy:**
+
+```bash
+docker compose exec api python -m app.dns_debug --request-id YOUR_REQUEST_ID --resolver 1.1.1.1
+```
+
+If this reports `DNS verification: MATCH` and `Challenge expired: False`, edit the existing `.env` file on the Docker host and add the **optional** resolver override:
+
+```dotenv
+DNS_RESOLVERS=1.1.1.1,1.0.0.1
+```
+
+Recreate the API container (a restart will not refresh its environment):
+
+```bash
+docker compose up -d --build --force-recreate api
+docker compose exec api python -m app.dns_debug --request-id YOUR_REQUEST_ID
+```
+
+The active lookup resolver should now show the chosen IP(s). If it reports `MATCH` and is not expired, press **Verify DNS** in the UI. Do not bypass DNS proof or change any challenge tokens.
+
+The default `DNS_RESOLVERS=` uses the container's system DNS. Only literal IP addresses are accepted (maximum three). This setting sends DNS queries for certificate challenges to the chosen resolver(s); use trusted resolvers appropriate for your privacy/network requirements. Firewall restrictions may block public DNS over UDP/TCP 53. A cached negative DNS response can temporarily persist after creation, and a new challenge may be needed if the existing one expired (one-hour lifetime). When all resolvers fail the program denies verification (fail closed).

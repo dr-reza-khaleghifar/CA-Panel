@@ -10,6 +10,7 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from functools import partial
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -40,6 +41,7 @@ class Settings:
     max_total_per_hour: int = 200
     max_verifications: int = 10
     trust_proxy_headers: bool = os.getenv("TRUST_PROXY_HEADERS", "0") == "1"
+    dns_resolvers: str = os.getenv("DNS_RESOLVERS", "")
 
 
 class DomainInput(BaseModel):
@@ -79,10 +81,32 @@ def normalize_domain(value: str) -> str:
     return domain
 
 
-def dns_has_challenge(name: str, expected_value: str) -> bool:
-    resolver = dns.resolver.Resolver()
+def configured_dns_resolver(resolvers: str = "") -> dns.resolver.Resolver:
+    """Return system DNS by default, or specified IP-address resolvers.
+
+    DNS_RESOLVERS is an opt-in escape hatch for stale or split DNS in Docker.
+    Only literal IPs are accepted: no hostname resolution bootstrapping.
+    """
+    configured = resolvers.strip()
+    if configured:
+        parts = [item.strip() for item in configured.split(",")]
+        if not 1 <= len(parts) <= 3 or any(not part for part in parts):
+            raise ValueError("DNS_RESOLVERS must contain 1-3 comma-separated DNS server IP addresses")
+        try:
+            nameservers = [str(ipaddress.ip_address(part)) for part in parts]
+        except ValueError as exc:
+            raise ValueError("DNS_RESOLVERS must contain literal IPv4 or IPv6 addresses") from exc
+        resolver = dns.resolver.Resolver(configure=False)
+        resolver.nameservers = nameservers
+    else:
+        resolver = dns.resolver.Resolver()
     resolver.timeout = 2
     resolver.lifetime = 5
+    return resolver
+
+
+def dns_has_challenge(name: str, expected_value: str, *, dns_resolvers: str = "") -> bool:
+    resolver = configured_dns_resolver(dns_resolvers)
     try:
         for answer in resolver.resolve(name, "TXT", search=False):
             if b"".join(answer.strings).decode("utf-8", errors="replace") == expected_value:
@@ -233,8 +257,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         init_db(settings.db_path)
         app.state.ca = load_issuer(settings.ca_dir, settings.ca_key_password)
+        # Validate DNS settings at startup rather than failing during issuance.
+        configured_dns_resolver(settings.dns_resolvers)
         if not hasattr(app.state, "dns_checker"):
-            app.state.dns_checker = dns_has_challenge
+            app.state.dns_checker = partial(dns_has_challenge, dns_resolvers=settings.dns_resolvers)
         yield
 
     app = FastAPI(title="CA-Panel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)

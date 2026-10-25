@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 import dns.exception
 import dns.resolver
 
-from app.main import Settings, connect, normalize_domain
+from app.main import Settings, configured_dns_resolver, connect, normalize_domain
 
 
 def probe_txt(name: str, expected: str, resolver=None):
@@ -35,6 +35,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Diagnose CA-Panel TXT validation in the API container")
     parser.add_argument("domain", nargs="?", help="Exact domain entered in CA-Panel")
     parser.add_argument("--request-id", help="Exact CA-Panel request_id, to avoid selecting an older/newer request")
+    parser.add_argument("--resolver", help="Optional comma-separated resolver IPs for this diagnostic run only")
     args = parser.parse_args()
     if bool(args.domain) == bool(args.request_id):
         parser.error("Provide either a domain or --request-id")
@@ -60,14 +61,19 @@ def main() -> int:
     name = "_ca-panel." + row["domain"] + "."
     expected = "ca-panel-verification=" + row["token"]
     expired = row["expires_at"] < int(time.time())
-    resolver = dns.resolver.Resolver()
+    selected_servers = settings.dns_resolvers if args.resolver is None else args.resolver
+    try:
+        resolver = configured_dns_resolver(selected_servers)
+    except ValueError as exc:
+        parser.error(str(exc))
     print("Domain:", row["domain"])
     print("Request ID:", row["id"])
     print("DNS TXT name queried:", name)
     print("Expected exact TXT value:", repr(expected))
     print("Challenge expires (UTC):", datetime.fromtimestamp(row["expires_at"], timezone.utc).isoformat())
     print("Challenge expired:", expired)
-    print("Container DNS resolver(s):", ", ".join(str(x) for x in resolver.nameservers))
+    print("Container system resolver(s):", ", ".join(str(x) for x in dns.resolver.Resolver().nameservers))
+    print("Active lookup resolver(s):", ", ".join(str(x) for x in resolver.nameservers))
     matches, values, error = probe_txt(name, expected, resolver)
     if error:
         print("DNS lookup error:", error)
@@ -79,7 +85,8 @@ def main() -> int:
     if matches and expired:
         print("ACTION: Create a new challenge in the panel; this one has expired.")
     elif not matches:
-        print("ACTION: Ensure the TXT record name and value are exact; then check DNS propagation and container resolver.")
+        print("ACTION: Compare --resolver 1.1.1.1 with the active resolver and check DNS propagation.")
+        print("ACTION: If a trusted resolver works, set DNS_RESOLVERS in .env and recreate the API container.")
     else:
         print("The TXT record is visible and matches. Retry verification for this request.")
     return 0 if matches and not expired else 1
