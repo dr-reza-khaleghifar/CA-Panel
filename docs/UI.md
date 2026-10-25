@@ -68,3 +68,12 @@ The helper downloads a **pinned version** of the open-source Vazirmatn variable 
 If host-side certificate verification also fails, **do not disable TLS checks**. Download the font from its [pinned upstream link](https://raw.githubusercontent.com/rastikerdar/vazirmatn/6e553e33489a8f9dfaccc76860a2e3f3c1e66de7/fonts/webfonts/Vazirmatn%5Bwght%5D.woff2) through a trusted network/browser and run `python3 scripts/install_font.py --file /path/to/downloaded.woff2`. The same cryptographic digest validation is required.
 
 You may instead skip the optional font setup: `git pull && docker compose up -d --build --force-recreate api` now works without it. HTTP 404 for the optional font in that case is expected; no certificate or issuance features are affected.
+
+
+## نسخه ۰.۵ — ناوبری واقعی و بازطراحی جزئیات
+- منوها اکنون به بخش‌های واقعی «صدور گواهی»، «مراحل دریافت»، «سؤالات متداول» و «راهنمای امنیت» متصل هستند؛ بخش فعال هنگام اسکرول و کلیک به‌روزرسانی می‌شود.
+- در موبایل و تبلت (تا ۹۸۰px) منوی کناری به کشوی قابل باز و بسته‌کردن تبدیل شده است. دکمه منو وضعیت `aria-expanded` دارد و بستن با دکمه، بیرون منو و کلید Escape کار می‌کند.
+- پیمایش منو بدون ریفرش صفحه انجام می‌شود، بنابراین DNS token و لینک یک‌بارمصرف ZIP در حافظه از دست نمی‌رود.
+- بخش پرسش‌های متداول با پنل‌های بازشونده اضافه شد. لینک‌های منو به بخش‌های واقعی اشاره می‌کنند؛ هیچ مسیر یا API جعلی اضافه نشده است.
+- فایل‌های `v5.css` و `navigation.js` محلی هستند و با CSP سخت‌گیرانه فعلی کار می‌کنند؛ هیچ وابستگی خارجی یا فونت جدیدی برای Docker build اضافه نشده است.
+- این تغییر فقط UI است و منطق FastAPI، اعتبارسنجی TXT، امضا و دانلود خصوصی ZIP را تغییر نمی‌دهد.
