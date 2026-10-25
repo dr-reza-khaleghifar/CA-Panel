@@ -308,7 +308,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if cur.rowcount == 0:
                 raise HTTPException(429, "Too many verification attempts")
         if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
-            raise HTTPException(422, "Expected TXT record was not found; check DNS propagation")
+            raise HTTPException(422, f"DNS TXT verification failed for _ca-panel.{row['domain']}. The record may be missing, mismatched with this request, or invisible to the container resolver. See docs/OPERATIONS.md.")
         with connect(settings.db_path) as con:
             con.execute("UPDATE challenges SET verified_at=? WHERE id=?", (now, rid))
         return public_view(get_challenge_or_404(rid))

@@ -76,3 +76,27 @@ This means the application cannot decrypt the **online Issuing CA** private key.
 If OpenSSL succeeds but the container check fails, inspect `.env` quoting, other shell-exported `CA_KEY_PASSWORD` overrides, and whether `./secrets/online` points to the correct deployment directory. Never run `docker compose config` or `printenv` in shared terminals/logs because they can display secrets. For Docker Compose, exported environment variables override values in `.env`.
 
 Once the check passes, the main application should start with `docker compose up -d --force-recreate api`. If the correct passphrase is permanently lost, encrypted PEM key data cannot be recovered by resetting a setting; restoring from backup or securely rotating the Issuing CA using the offline Root CA is required.
+
+## Troubleshooting: DNS TXT record exists but verification fails
+
+CA-Panel verifies an **exact match** against one DNS TXT value, using the **DNS resolver configured inside the API container**. The requested DNS name is always `_ca-panel.<the-exact-domain-entered-in-the-form>` (so a request for `www.example.org` requires `_ca-panel.www.example.org`, not `_ca-panel.example.org`). The TXT value is exactly `ca-panel-verification=<token for this request>`.
+
+**The quickest check**, in the project directory on the Docker host:
+
+```bash
+docker compose exec api python -m app.dns_debug example.org
+# Use the exact domain you entered in the panel.
+# Or select a particular request with --request-id REQUEST_ID
+```
+
+This reads the most recent request for the given domain from SQLite and queries DNS **from inside the same container**. It displays the exact expected DNS name and TXT value, the current resolver(s), the returned TXT values, the challenge expiry, and whether they match. Treat request tokens and other TXT values as temporary operational data; redact them before sharing logs or screenshots publicly.
+
+Interpret the results:
+
+- **NXDOMAIN / NoAnswer / 0 TXT values:** Check the DNS provider's published zone and the active authoritative nameservers. Providers usually append the zone automatically: enter only `_ca-panel` for `example.org`, or `_ca-panel.www` for `www.example.org`, *unless* the provider explicitly requires a full hostname. Avoid `_ca-panel.example.org.example.org`.
+- **TXT values returned but NO MATCH:** Copy the current request's entire value from the panel. An old token from an earlier request does not work. Avoid extra spaces, embedded quotes, or a wrong `www` subdomain. Normal quotes added by `dig` when rendering TXT values are fine. Multiple TXT RDATA chunks are joined automatically.
+- **Public DNS resolves but container does not:** Compare `dig TXT _ca-panel.example.org @1.1.1.1 +short` (from the host, if `dig` is installed) with the command above. Check Docker DNS resolution, negative caching, firewall and upstream nameservers; CA-Panel does not bypass the configured resolver automatically.
+- **Timeout / SERVFAIL:** DNS connectivity or upstream resolver issue; check Docker's DNS network and DNS servers. Do not disable ownership verification.
+- **Expired:** Challenges expire after one hour and each has at most ten verification attempts. Create a new request and publish its newly generated token; do not reuse the previous TXT value.
+
+You can also identify the authoritative nameservers using `dig NS example.org +short` and query one of them directly using `dig @<authoritative-nameserver> TXT _ca-panel.example.org +short` from a host with `dig`. Do not share `.env`, private CA keys, or full challenge tokens with third parties.

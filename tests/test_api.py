@@ -101,3 +101,21 @@ def test_incorrect_issuer_passphrase_gives_actionable_error(tmp_path):
     with pytest.raises(RuntimeError, match="Issuing CA"):
         with TestClient(create_app(settings)):
             pass
+
+
+def test_dns_debug_exact_match_and_chunked_txt():
+    from app.dns_debug import probe_txt
+
+    class TXT:
+        strings = [b"ca-panel-verification=", b"abc123"]
+
+    class Resolver:
+        def resolve(self, name, rdtype, search):
+            assert (name, rdtype, search) == ("_ca-panel.example.org.", "TXT", False)
+            return [TXT()]
+
+    matched, values, error = probe_txt("_ca-panel.example.org.", "ca-panel-verification=abc123", Resolver())
+    assert matched is True
+    assert values == ["ca-panel-verification=abc123"]
+    assert error is None
+    assert probe_txt("_ca-panel.example.org.", "ca-panel-verification=old-token", Resolver())[0] is False
