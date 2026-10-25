@@ -9,3 +9,6 @@ data/
 *.pem
 *.crt
 .DS_Store
+
+# Locally installed optional Persian font binary; Docker includes it if present.
+app/static/fonts/Vazirmatn.woff2

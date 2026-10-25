@@ -1,7 +1,8 @@
 /* CA-Panel v0.4 — editorial security workspace; Persian first.
-   Self-hosted Vazirmatn variable typeface, bundled by Docker at build time.
+   Self-hosted Vazirmatn variable typeface, installed optionally on the host.
+   Never fetch fonts or disable TLS verification during Docker build.
    The older style files remain as fallbacks; this sheet owns the visual layer. */
-@font-face{font-family:"Vazirmatn Local";src:url("/static/fonts/Vazirmatn.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
+@font-face{font-family:"Vazirmatn Local";src:local("Vazirmatn"),url("/static/fonts/Vazirmatn.woff2") format("woff2");font-style:normal;font-weight:100 900;font-display:swap}
 :root{
  --page:#f5f8f7;--paper:#ffffff;--panel:#fbfdfc;--text:#132d37;--muted:#607983;
  --soft:#edf4f1;--border:#dae8e4;--primary:#087e78;--primary-hover:#006762;

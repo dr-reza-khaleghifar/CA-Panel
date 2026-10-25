@@ -48,3 +48,13 @@ def test_local_persian_font_css_and_accessibility():
     assert 'prefers-reduced-motion:reduce' in css
     assert css.count("{") == css.count("}")
     assert (STATIC / "fonts" / "OFL.txt").exists()
+
+
+def test_docker_font_install_requires_no_network_on_build():
+    dockerfile = (STATIC.parents[1] / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY app ./app" in dockerfile
+    assert "urllib.request.urlopen(" not in dockerfile
+    assert "Vazirmatn.woff2" in (STATIC / "v4.css").read_text(encoding="utf-8")
+    script = (STATIC.parents[1] / "scripts" / "install_font.py").read_text(encoding="utf-8")
+    assert "EXPECTED_GIT_BLOB" in script
+    assert "ssl.create_default_context()" in script

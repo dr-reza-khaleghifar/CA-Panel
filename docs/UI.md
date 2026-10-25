@@ -49,3 +49,22 @@ curl http://127.0.0.1:8080/healthz
 - رنگ‌بندی اصلی: فضای روشن خنثی و سرمه‌ایِ عمیق، تأکید فیروزه‌ای و نارنجی محدود. تم تیره سازگار، کنتراست و Focus قابل مشاهده، پشتیبانی از `prefers-reduced-motion` و وضعیت‌های فعال/خطا حفظ شده‌اند.
 - فایل `app/static/v4.css` یک لایه بصری مستقل روی استایل پایه است تا مسیرهای API، شناسه دکمه‌ها و رفتار امنیتی تغییر نکنند.
 - برای بررسی، پنل را پس از Docker build کامل با Hard Refresh باز کنید. برای اطمینان از بارگذاری فونت، درخواست `GET /static/fonts/Vazirmatn.woff2` باید 200 باشد.
+
+
+## Fix for SSL CERTIFICATE_VERIFY_FAILED during Docker font download
+
+Previous Dockerfile downloaded the font during image construction. In TLS-intercepted environments it could fail with `[SSL: CERTIFICATE_VERIFY_FAILED] ... self-signed certificate`, preventing the **entire CA-Panel** from starting.
+
+The current Dockerfile **does not fetch a font or make any HTTPS connection during the font-install step**. It builds even when the font is not installed, using the system font fallback. For best Persian typography, run this **on the Docker host, outside the container**, before building (macOS Python/curl may have access to different trusted certificates):
+
+```bash
+python3 scripts/install_font.py
+docker compose up -d --build --force-recreate api
+curl -I http://127.0.0.1:8080/static/fonts/Vazirmatn.woff2
+```
+
+The helper downloads a **pinned version** of the open-source Vazirmatn variable font over certificate-verified HTTPS, verifies its exact Git object digest, and writes to `app/static/fonts/Vazirmatn.woff2`; the Docker `COPY app ./app` step then bundles the verified binary. The file is intentionally gitignored; the OFL license is included in the repository.
+
+If host-side certificate verification also fails, **do not disable TLS checks**. Download the font from its [pinned upstream link](https://raw.githubusercontent.com/rastikerdar/vazirmatn/6e553e33489a8f9dfaccc76860a2e3f3c1e66de7/fonts/webfonts/Vazirmatn%5Bwght%5D.woff2) through a trusted network/browser and run `python3 scripts/install_font.py --file /path/to/downloaded.woff2`. The same cryptographic digest validation is required.
+
+You may instead skip the optional font setup: `git pull && docker compose up -d --build --force-recreate api` now works without it. HTTP 404 for the optional font in that case is expected; no certificate or issuance features are affected.

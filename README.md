@@ -131,3 +131,7 @@ python -m pytest -q
 ## طراحی فارسی نسخه ۳
 
 رابط فارسی با فونت [Vazirmatn](https://github.com/rastikerdar/vazirmatn) (وزیرمتن، SIL OFL 1.1)، رنگ سرمه‌ای/فیروزه‌ای، خوانایی بیشتر، تم روشن/تیره و چیدمان موبایل به‌روزرسانی شد. فایل‌های `app/static/v3.css` و `docs/UI.md` حاوی تغییرات و راهنمای فونت هستند. برای بارگذاری وب‌فونت به دسترسی `fonts.googleapis.com` و `fonts.gstatic.com` نیاز است؛ اگر مسدود باشد، فونت جایگزین استفاده می‌شود. این تغییر فقط UI است و منطق صدور تغییری نکرده است.
+
+### رفع مشکل SSL دانلود فونت هنگام Docker Build
+
+اگر ساخت Docker در `urllib.request.urlopen(...Vazirmatn...)` با `CERTIFICATE_VERIFY_FAILED` متوقف شده است، نسخه جدید دیگر در Dockerfile فونت دانلود نمی‌کند و ساخت را متوقف نخواهد کرد. برای فعال‌شدن فونت فارسی محلی، یک بار روی سیستم میزبان `python3 scripts/install_font.py` را اجرا کنید و سپس `docker compose up -d --build --force-recreate api`. اگر TLS میزبان هم معتبر نبود، از `--file` برای فایل دریافت‌شده از مسیر مطمئن استفاده کنید. **گزینه `--insecure` یا غیرفعال‌سازی بررسی SSL مجاز نیست.** [راهنمای کامل](docs/UI.md#fix-for-ssl-certificate_verify_failed-during-docker-font-download).
