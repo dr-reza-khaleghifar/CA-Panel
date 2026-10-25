@@ -323,7 +323,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             with app.state.downloads_lock:
                 app.state.downloads.clear()
 
-    app = FastAPI(title="CA-Panel", version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app = FastAPI(title=settings.ca_display_name, version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.downloads = {}
     app.state.downloads_lock = threading.Lock()
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
