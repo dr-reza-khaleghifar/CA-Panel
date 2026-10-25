@@ -114,7 +114,7 @@ def test_offline_root_key_blocks_auto_start(tmp_path, monkeypatch):
     # The guard must trigger before attempting a Docker start.
     monkeypatch.setattr(install, "run",
                         lambda *args, **kwargs: pytest.fail("Must not run Docker with Root key on host"))
-    with pytest.raises(RuntimeError, match="Offline Root CA private key"):
+    with pytest.raises(RuntimeError, match="Offline Root CA material"):
         install.main()
 
 
@@ -138,4 +138,53 @@ def test_new_ca_mode_rejects_existing_issuance_database(tmp_path, monkeypatch):
     monkeypatch.setattr(install, "generate_ca",
                         lambda: pytest.fail("Must not generate new Root CA over existing records"))
     with pytest.raises(RuntimeError, match="database files"):
+        install.main()
+
+
+def test_installer_forwards_new_ca_env_profile_to_generator(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch)
+    import shutil
+    shutil.rmtree(tmp_path / "secrets")  # Fresh CA creation requires no existing CA dirs.
+    existing = tmp_path / ".env"
+    existing.write_text(
+        "CA_KEY_PASSWORD=REPLACE_WITH_ISSUING_CA_PASSPHRASE\n"
+        "CA_ROOT_CN=Company Root\n"
+        "CA_ISSUER_CN=Company Issuer\n"
+        "CA_ROOT_KEY_FILE=confidential-root.pem\n"
+        "CA_ROOT_CERT_FILE=company-root.pem\n"
+        "CA_ISSUER_KEY_FILE=company-signing.pem\n"
+        "CA_ISSUER_CERT_FILE=company-issuer.pem\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sys, "argv", ["install.py", "--init-ca"])
+    observed = []
+    def capture_profile(profile):
+        observed.append(profile)
+        return "brand-new-issuer-secret-123"
+    monkeypatch.setattr(install, "generate_ca", capture_profile)
+    assert install.main() == 0
+    assert len(observed) == 1
+    assert observed[0].root_common_name == "Company Root"
+    assert observed[0].issuer_common_name == "Company Issuer"
+    assert observed[0].root_key_file == "confidential-root.pem"
+    assert observed[0].root_cert_file == "company-root.pem"
+    assert observed[0].issuer_key_file == "company-signing.pem"
+    assert observed[0].issuer_cert_file == "company-issuer.pem"
+    assert "CA_ROOT_CN=Company Root" in existing.read_text(encoding="utf-8")
+    assert "CA_KEY_PASSWORD='brand-new-issuer-secret-123'" in existing.read_text(encoding="utf-8")
+
+
+def test_installer_rejects_invalid_new_ca_profile_before_generation(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch)
+    import shutil
+    shutil.rmtree(tmp_path / "secrets")
+    monkeypatch.setattr(sys, "argv", ["install.py", "--init-ca"])
+    (tmp_path / ".env").write_text(
+        "CA_KEY_PASSWORD=REPLACE_WITH_ISSUING_CA_PASSPHRASE\n"
+        "CA_ROOT_KEY_BITS=1024\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(install, "generate_ca",
+                        lambda *args: pytest.fail("Invalid CA profile must not generate certificates"))
+    with pytest.raises(ValueError, match="CA_ROOT_KEY_BITS"):
         install.main()
