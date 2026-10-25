@@ -261,6 +261,11 @@ def main() -> int:
     filenames = validate_filenames(values)
 
     if args.init_ca:
+        if original is not None and values.get("CA_KEY_PASSWORD", "") not in (
+            "", "REPLACE_WITH_ISSUING_CA_PASSPHRASE",
+        ):
+            fail("Existing .env already contains an Issuing CA password. "
+                 "Refusing to replace it during --init-ca; back up and review manually.")
         if online != (ROOT / "secrets" / "online").resolve():
             fail("--init-ca uses the default secrets/online location; "
                  "for custom mounts, create/import your CA manually")
