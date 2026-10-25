@@ -156,3 +156,70 @@ def test_dns_verifier_uses_custom_resolver_without_bypassing_txt(monkeypatch):
     assert dns_has_challenge("_ca-panel.example.org.", "ca-panel-verification=WRONG",
                              dns_resolvers="1.1.1.1") is False
     assert observed == [(["1.1.1.1"], "_ca-panel.example.org.", "TXT", False)] * 2
+
+
+
+def test_server_side_issuance_download_links_and_one_time_bundle(client):
+    import io
+    import zipfile
+    from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
+
+    created = client.post("/api/requests", json={"domain": "example.org"})
+    assert created.status_code == 201
+    rid = created.json()["request_id"]
+    assert client.post(f"/api/requests/{rid}/issue-server").status_code == 403
+    assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    issued = client.post(f"/api/requests/{rid}/issue-server")
+    assert issued.status_code == 201, issued.text
+    result = issued.json()
+    assert result["download_expires_in_seconds"] == 600
+    assert result["download_url"].startswith("/api/downloads/")
+    assert client.post(f"/api/requests/{rid}/issue-server").status_code == 409
+
+    leaf_response = client.get(result["certificate_url"])
+    assert leaf_response.status_code == 200
+    leaf = x509.load_pem_x509_certificate(leaf_response.content)
+    assert client.get(result["fullchain_url"]).content.count(b"BEGIN CERTIFICATE") == 2
+    assert client.get(result["issuer_url"]).status_code == 200
+    assert client.get(result["root_url"]).status_code == 200
+
+    bundle = client.get(result["download_url"])
+    assert bundle.status_code == 200
+    assert bundle.headers["cache-control"].startswith("no-store")
+    assert bundle.headers["content-type"].startswith("application/zip")
+    with zipfile.ZipFile(io.BytesIO(bundle.content)) as archive:
+        assert set(archive.namelist()) == {
+            "example.org.key", "example.org.crt", "example.org-fullchain.pem",
+            "issuing-ca.pem", "root-ca.pem", "README.txt"
+        }
+        private = serialization.load_pem_private_key(archive.read("example.org.key"), password=None)
+        assert private.public_key().public_numbers() == leaf.public_key().public_numbers()
+        assert archive.read("example.org.crt") == leaf_response.content
+        assert archive.read("example.org-fullchain.pem").count(b"BEGIN CERTIFICATE") == 2
+    assert client.get(result["download_url"]).status_code == 404
+    assert client.get(result["certificate_url"]).status_code == 200
+    assert client.get("/api/downloads/not-a-valid-token").status_code == 404
+
+
+def test_expired_private_bundle_link(client):
+    rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
+    assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    result = client.post(f"/api/requests/{rid}/issue-server").json()
+    token = result["download_url"].split("/")[-1]
+    deadline, data, filename = client.app.state.downloads[token]
+    client.app.state.downloads[token] = (0, data, filename)
+    assert client.get(result["download_url"]).status_code == 404
+    assert client.get(result["certificate_url"]).status_code == 200
+
+
+def test_private_key_is_not_saved_in_sqlite(client, tmp_path):
+    from app.main import connect
+    rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
+    client.post(f"/api/requests/{rid}/verify")
+    result = client.post(f"/api/requests/{rid}/issue-server")
+    assert result.status_code == 201
+    with connect(tmp_path / "data" / "panel.db") as conn:
+        row = conn.execute("SELECT cert_pem, serial_hex FROM challenges WHERE id=?", (rid,)).fetchone()
+    assert row["cert_pem"].startswith("-----BEGIN CERTIFICATE-----")
+    assert "PRIVATE KEY" not in row["cert_pem"]

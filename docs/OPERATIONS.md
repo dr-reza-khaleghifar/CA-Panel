@@ -135,3 +135,14 @@ The frontend now generates RSA-2048 + PKCS#10 CSR with Web Crypto, requiring HTT
 Some browsers block automatic downloads after asynchronous key generation; the success screen offers a manual ZIP download button. Download the ZIP before closing the page. Neither the API nor the browser can recover a lost key after refresh. Automatic UI issuance **does not mean automatic renewal**. A new challenge and fresh proof are needed for each new certificate. External CSR clients continue to work unchanged.
 
 Do not weaken HTTPS or the verification logic to make the UI work from a nonsecure browser context; expose the panel behind Caddy HTTPS in public deployments. A compromised frontend script could steal browser-generated keys, so serve all frontend code over trusted HTTPS and restrict modifications to the repo/static assets.
+
+
+## Server-generated keys and one-time ZIP links
+
+After successful DNS proof, `POST /api/requests/{rid}/issue-server` generates an RSA-2048 key on the API server, stores only the signed **public** certificate in SQLite, and returns a one-time, ten-minute ZIP capability URL. The private key and ZIP are temporarily in *process RAM*, **not on disk, SQLite or Github**. This feature intentionally means the CA server can see end-user TLS private keys during issuance.
+
+- **HTTPS is mandatory for internet users.** Keep the API bound to loopback and place the frontend behind the configured HTTPS Caddy proxy. Never expose port 8000/8080 publicly, never send a private ZIP over untrusted HTTP.
+- Keep `--workers 1`; the download registry is in-process RAM. Restarting/redeploying destroys pending downloads. If a link is consumed/expired/lost, the user must submit a new domain request, complete TXT validation again and generate a **new key**. A previously issued request cannot mint another private-key URL.
+- Each link is a high-entropy bearer secret, **one-use**, with max 10-minute lifetime. Avoid logging full URLs, placing them in tickets or chat, link scanners, automated fetchers, and proxies/CDNs that cache requests. Responses use `no-store` and `no-referrer` headers. Clean backups of the application and SQLite must not contain generated end-user keys.
+- Restrict operator access to the container's process memory, debugging tools and Docker socket. An attacker who compromises the CA application may read private keys during issuance. Memory is not securely zeroized by Python's garbage collector. For strict confidentiality, continue using the manual CSR API and create keys exclusively on the user's machine.
+- All individual certificate and CA links are public material; **only ZIP** includes a private key. The ZIP is unencrypted; protect it and set filesystem permission 0600 on the extracted `.key`.

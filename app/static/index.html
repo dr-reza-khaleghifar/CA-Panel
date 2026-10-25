@@ -6,7 +6,6 @@
   <meta name="description" content="صدور خودکار گواهی TLS با CA خصوصی پس از تأیید DNS و دانلود فایل‌های گواهی و کلید">
   <title>CA-Panel | صدور خودکار گواهی</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/cert.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -19,7 +18,7 @@
       <div class="hero">
         <div class="eyebrow">مدیریت گواهی دیجیتال</div>
         <h1>گواهی TLS، <span>خودکار و با امضای CA شما</span></h1>
-        <p>دامنه را ثبت و مالکیت DNS را تأیید کنید؛ سپس پنل کلید و CSR را در مرورگر می‌سازد، گواهی ۳۰روزه را صادر می‌کند و همه فایل‌ها را در یک ZIP تحویل می‌دهد.</p>
+        <p>دامنه را ثبت و مالکیت DNS را تأیید کنید؛ سپس سرور کلید خصوصی و گواهی ۳۰روزه را صادر می‌کند و لینک‌های دانلود فایل‌های گواهی و یک بسته خصوصی ZIP را تحویل می‌دهد.</p>
       </div>
       <div class="steps" aria-label="مراحل صدور">
         <div class="step selected" id="step-1"><b>۱</b><span>ثبت دامنه</span></div><div class="bar"></div>
@@ -42,26 +41,32 @@
         <div class="kv"><span>مقدار رکورد (Value)</span><div class="copyline"><code id="dns-value" dir="ltr"></code><button class="subtle" type="button" data-copy="dns-value">کپی</button></div></div>
         <p class="help">برخی ارائه‌دهندگان DNS نام رکورد را نسبی می‌خواهند؛ برای دامنه اصلی فقط <code dir="ltr">_ca-panel</code> را وارد کنید. درخواست یک ساعت اعتبار دارد و انتشار DNS ممکن است زمان ببرد.</p>
         <button id="verify-button" class="primary" type="button">تأیید DNS، صدور خودکار و دانلود ZIP ↓</button>
-        <p class="help">برای ساخت کلید خصوصی در مرورگر از HTTPS یا localhost استفاده کنید. نیازی به OpenSSL یا آپلود کلید نیست.</p>
+        <p class="help">کلید خصوصی روی سرور فقط به‌طور موقت در حافظه نگهداری می‌شود. برای جلوگیری از سرقت کلید، پنل را در اینترنت فقط با HTTPS استفاده کنید.</p>
       </section>
       <section class="panel hidden" id="issue-panel">
-        <div class="panel-head"><div><div class="step-caption">مرحله سوم</div><h2>ساخت خودکار گواهی</h2></div><span class="small-tag">Web Crypto</span></div>
-        <p>مالکیت DNS تأیید شد. کلید خصوصی و CSR به‌صورت محلی در مرورگر ساخته می‌شوند و سرور تنها CSR را دریافت می‌کند.</p>
-        <p class="help">اگر صدور بر اثر اختلال شبکه متوقف شد، تا وقتی این صفحه باز است، با همان کلید دوباره تلاش کنید. اگر درخواست قبلاً امضا شده باشد، باید گواهی تازه‌ای درخواست دهید.</p>
+        <div class="panel-head"><div><div class="step-caption">مرحله سوم</div><h2>صدور گواهی روی سرور</h2></div><span class="small-tag">Server-side</span></div>
+        <p>مالکیت DNS تأیید شد؛ سرور کلید و گواهی را تولید می‌کند و لینک‌های دانلود را برمی‌گرداند.</p>
+        <p class="help">اگر گواهی صادر شده باشد اما لینک ZIP را دریافت نکرده باشید، به‌دلیل حساسیت کلید خصوصی باید درخواست جدید بسازید.</p>
         <button id="issue-button" class="primary" type="button">تلاش مجدد برای صدور و دانلود</button>
       </section>
       <section class="panel hidden" id="success-panel">
         <div class="success-icon" aria-hidden="true">✓</div>
         <h2>گواهی با موفقیت صادر شد</h2>
-        <p>برای <strong id="issued-domain" dir="ltr"></strong> گواهی امضاشده آماده است. فایل ZIP شامل کلید خصوصی <code dir="ltr">.key</code>، گواهی <code dir="ltr">.crt</code>، زنجیره <code dir="ltr">fullchain.pem</code> و گواهی‌های CA است.</p>
-        <div class="actions"><button id="download-button" class="primary" type="button">دانلود همه فایل‌های گواهی (ZIP) ↓</button><a href="/api/ca.pem" class="secondary" download="root-ca.pem">گواهی CA ریشه</a></div>
+        <p>برای <strong id="issued-domain" dir="ltr"></strong> گواهی امضاشده آماده است. بسته ZIP شامل کلید خصوصی <code dir="ltr">.key</code>، گواهی <code dir="ltr">.crt</code>، فایل <code dir="ltr">fullchain.pem</code> و گواهی‌های CA است. لینک‌های عمومی گواهی نیز جداگانه در دسترس‌اند.</p>
+        <div class="actions">
+          <a id="download-button" href="#" class="primary" download>دانلود یک‌بارمصرف ZIP شامل کلید خصوصی ↓</a>
+          <a id="leaf-link" href="#" class="secondary" download>گواهی دامنه (.crt)</a>
+          <a id="fullchain-link" href="#" class="secondary" download>زنجیره کامل (fullchain.pem)</a>
+          <a id="issuer-link" href="#" class="secondary" download>گواهی CA صادرکننده</a>
+          <a id="root-link" href="#" class="secondary" download>گواهی CA ریشه</a>
+        </div>
         <p class="help" id="certificate-expiry"></p>
-        <p class="help"><strong>مهم:</strong> ZIP شامل کلید خصوصی بدون رمزگذاری است؛ آن را فقط در محل امن ذخیره کنید. کلید خصوصی در سرور ذخیره نمی‌شود و پس از بستن یا بارگذاری مجدد صفحه قابل بازیابی نیست.</p>
+        <p class="help"><strong>مهم:</strong> ZIP دارای کلید خصوصی بدون رمز است. لینک آن فقط ۱۰ دقیقه اعتبار دارد و پس از یک بار دانلود باطل می‌شود. کلید خصوصی روی دیسک/دیتابیس سرور ذخیره نمی‌شود. لینک خصوصی را برای دیگران ارسال نکنید و از HTTPS استفاده کنید.</p>
       </section>
       <div role="status" aria-live="polite" id="message" class="message hidden"></div>
       <div class="notice"><strong>نکته مهم درباره اعتماد مرورگر</strong><p>این سامانه یک CA خصوصی است. گواهی صادرشده به‌طور پیش‌فرض در مرورگرهای عمومی مورد اعتماد نیست؛ فقط دستگاه‌هایی که گواهی ریشه CA را به‌صورت آگاهانه و از کانال معتبر نصب کرده‌اند به آن اعتماد می‌کنند. برای HTTPS عمومی معمولاً از Let's Encrypt استفاده کنید.</p></div>
     </main>
-    <footer><span>CA-Panel · Open Source Private PKI</span><span>کلید وب‌سایت فقط در مرورگر شما ساخته می‌شود.</span></footer>
+    <footer><span>CA-Panel · Open Source Private PKI</span><span>کلید خصوصی موقتاً در حافظه سرور تولید می‌شود؛ آن را فوراً دانلود و ایمن ذخیره کنید.</span></footer>
   </div>
 </body>
 </html>

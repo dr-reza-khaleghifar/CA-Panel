@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+import io
+import threading
+import zipfile
 import ipaddress
 import os
 import re
@@ -23,12 +26,14 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 BASE = Path(__file__).resolve().parent
 DISALLOWED_SUFFIXES = {"local", "localhost", "internal", "test", "example", "invalid", "onion", "home", "arpa"}
+DOWNLOAD_TTL_SECONDS = 600  # one-time capability, 10 minutes
+MAX_PENDING_DOWNLOADS = 100  # bound in-memory retention
 
 
 @dataclass(frozen=True)
@@ -225,6 +230,44 @@ def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certific
     )
 
 
+
+def build_server_bundle(domain: str, private_key_pem: bytes, certificate: x509.Certificate,
+                        issuer: x509.Certificate, root: x509.Certificate) -> bytes:
+    """Build a private-key-bearing ZIP in memory only; never write keys to SQLite/disk."""
+    leaf_pem = certificate.public_bytes(serialization.Encoding.PEM)
+    issuer_pem = issuer.public_bytes(serialization.Encoding.PEM)
+    root_pem = root.public_bytes(serialization.Encoding.PEM)
+    instructions = (
+        f"CA-Panel certificate files for {domain}\n\n"
+        f"{domain}.key - UNENCRYPTED PRIVATE KEY; store securely (0600)\n"
+        f"{domain}.crt - server certificate\n"
+        f"{domain}-fullchain.pem - server certificate plus issuing CA\n"
+        "issuing-ca.pem - issuing CA public certificate\n"
+        "root-ca.pem - private CA root public certificate\n\n"
+        "Example nginx: ssl_certificate <domain>-fullchain.pem; "
+        "ssl_certificate_key <domain>.key;\n"
+        "This private CA is NOT publicly browser trusted.\n"
+        "The one-time private-key ZIP download cannot be recovered after use or expiry.\n"
+    ).replace("<domain>", domain).encode("utf-8")
+    files = {
+        f"{domain}.key": private_key_pem,
+        f"{domain}.crt": leaf_pem,
+        f"{domain}-fullchain.pem": leaf_pem + issuer_pem,
+        "issuing-ca.pem": issuer_pem,
+        "root-ca.pem": root_pem,
+        "README.txt": instructions,
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        for filename, content in files.items():
+            info = zipfile.ZipInfo(filename)
+            info.create_system = 3
+            mode = 0o100600 if filename.endswith(".key") else 0o100644
+            info.external_attr = mode << 16
+            archive.writestr(info, content)
+    return buffer.getvalue()
+
+
 def client_address(request: Request, settings: Settings) -> str:
     if settings.trust_proxy_headers:
         # Only turn this on when *all* incoming requests pass through a trusted proxy.
@@ -263,7 +306,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.dns_checker = partial(dns_has_challenge, dns_resolvers=settings.dns_resolvers)
         yield
 
-    app = FastAPI(title="CA-Panel", version="0.1.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app = FastAPI(title="CA-Panel", version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.state.downloads = {}
+    app.state.downloads_lock = threading.Lock()
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
     @app.middleware("http")
@@ -288,6 +333,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def root_certificate():
         _, _, root = app.state.ca
         return PlainTextResponse(root.public_bytes(serialization.Encoding.PEM).decode(), media_type="application/x-pem-file")
+
+    @app.get("/api/issuer.pem")
+    def issuer_certificate():
+        _, issuer, _ = app.state.ca
+        return PlainTextResponse(issuer.public_bytes(serialization.Encoding.PEM).decode(), media_type="application/x-pem-file")
 
     @app.post("/api/requests", status_code=201)
     def new_request(body: DomainInput, request: Request):
@@ -364,6 +414,113 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if cur.rowcount != 1:
                 raise HTTPException(409, "Certificate already issued")
         return {"domain": row["domain"], "certificate_pem": cert_pem, "chain_pem": chain_pem, "fullchain_pem": cert_pem + chain_pem, "expires_at": cert.not_valid_after_utc.isoformat(), "serial_hex": format(cert.serial_number, "x")}
+
+
+    @app.post("/api/requests/{rid}/issue-server", status_code=201)
+    def issue_server_side(rid: str):
+        """Create a new RSA private key on server, issue and offer ONE-TIME ZIP download."""
+        row = get_challenge_or_404(rid)
+        now = int(time.time())
+        if row["expires_at"] < now:
+            raise HTTPException(410, "Challenge expired. Create a new DNS request.")
+        if row["issued_at"] is not None:
+            raise HTTPException(409, "Already issued. For a new private key start a new request.")
+        if row["verified_at"] is None:
+            raise HTTPException(403, "Verify DNS ownership first")
+        if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
+            raise HTTPException(403, "DNS proof no longer exists; restore TXT record")
+
+        server_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        csr = (x509.CertificateSigningRequestBuilder()
+               .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, row["domain"])]))
+               .add_extension(x509.SubjectAlternativeName([x509.DNSName(row["domain"])]), critical=False)
+               .sign(server_key, hashes.SHA256()))
+        issuer_key, issuer, root = app.state.ca
+        try:
+            cert = certificate_for_domain(
+                row["domain"], csr.public_bytes(serialization.Encoding.PEM).decode("ascii"),
+                issuer_key, issuer
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        private_pem = server_key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption()
+        )
+        archive = build_server_bundle(row["domain"], private_pem, cert, issuer, root)
+        cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode("ascii")
+        serial_hex = format(cert.serial_number, "x")
+        capability = secrets.token_urlsafe(32)
+        deadline = time.monotonic() + DOWNLOAD_TTL_SECONDS
+        # Serialize issue result and secret ZIP allocation. Never store private key in DB.
+        with app.state.downloads_lock:
+            expired_tokens = [t for t, (expires, _, _) in app.state.downloads.items()
+                              if expires <= time.monotonic()]
+            for t in expired_tokens:
+                del app.state.downloads[t]
+            if len(app.state.downloads) >= MAX_PENDING_DOWNLOADS:
+                raise HTTPException(503, "Private-key download capacity reached; retry later")
+            with connect(settings.db_path) as con:
+                cur = con.execute(
+                    "UPDATE challenges SET issued_at=?, cert_pem=?, serial_hex=? "
+                    "WHERE id=? AND issued_at IS NULL AND expires_at>=? AND verified_at IS NOT NULL",
+                    (now, cert_pem, serial_hex, rid, now)
+                )
+                if cur.rowcount != 1:
+                    raise HTTPException(409, "Challenge expired or certificate already issued")
+            app.state.downloads[capability] = (deadline, archive, row["domain"] + "-certificates.zip")
+        prefix = "/api/requests/" + rid
+        return {
+            "domain": row["domain"],
+            "serial_hex": serial_hex,
+            "expires_at": cert.not_valid_after_utc.isoformat(),
+            "download_expires_in_seconds": DOWNLOAD_TTL_SECONDS,
+            "download_url": "/api/downloads/" + capability,
+            "certificate_url": prefix + "/leaf.crt",
+            "fullchain_url": prefix + "/fullchain.pem",
+            "issuer_url": "/api/issuer.pem",
+            "root_url": "/api/ca.pem",
+        }
+
+    @app.get("/api/downloads/{capability}")
+    def download_private_bundle(capability: str):
+        """Bearer capability is unguessable; delete on first use and after ten minutes."""
+        with app.state.downloads_lock:
+            offer = app.state.downloads.pop(capability, None)
+        if offer is None or offer[0] <= time.monotonic():
+            raise HTTPException(404, "Download link expired or already used; start a new request")
+        _, content, filename = offer
+        return Response(
+            content=content, media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store, private",
+                "Referrer-Policy": "no-referrer",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.get("/api/requests/{rid}/leaf.crt")
+    def download_leaf(rid: str):
+        row = get_challenge_or_404(rid)
+        if not row["cert_pem"]:
+            raise HTTPException(404, "Certificate not yet issued")
+        return PlainTextResponse(
+            row["cert_pem"], media_type="application/x-pem-file",
+            headers={"Content-Disposition": f'attachment; filename="{row["domain"]}.crt"'}
+        )
+
+    @app.get("/api/requests/{rid}/fullchain.pem")
+    def download_fullchain(rid: str):
+        row = get_challenge_or_404(rid)
+        if not row["cert_pem"]:
+            raise HTTPException(404, "Certificate not yet issued")
+        _, issuer, _ = app.state.ca
+        content = row["cert_pem"] + issuer.public_bytes(serialization.Encoding.PEM).decode("ascii")
+        return PlainTextResponse(
+            content, media_type="application/x-pem-file",
+            headers={"Content-Disposition": f'attachment; filename="{row["domain"]}-fullchain.pem"'}
+        )
 
     @app.get("/api/requests/{rid}/certificate")
     def download_certificate(rid: str):
