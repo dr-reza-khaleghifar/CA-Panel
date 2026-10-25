@@ -161,11 +161,13 @@ def check_prerequisites(*, docker: bool, crypto: bool) -> None:
                  "then run .venv/bin/python install.py --init-ca") from exc
 
 
-def generate_ca() -> str:
+def generate_ca(profile=None) -> str:
+    from scripts.ca_profile import CAProfile
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes
     from scripts.init_ca import create_ca
 
+    profile = profile if profile is not None else CAProfile()
     output = ROOT / "secrets"
     if any((output / "online" / name).exists() for name in ONLINE_FILES):
         fail("Issuing CA files already exist. Refusing to regenerate or overwrite them.")
@@ -184,8 +186,8 @@ def generate_ca() -> str:
     if len(root_pass) < 12 or len(issuer_pass) < 12 or root_pass == issuer_pass:
         fail("Passphrases must differ and each contain at least 12 characters")
     dotenv_secret(issuer_pass)
-    create_ca(output, root_pass.encode("utf-8"), issuer_pass.encode("utf-8"))
-    cert = x509.load_pem_x509_certificate((output / "online" / "root-cert.pem").read_bytes())
+    create_ca(output, root_pass.encode("utf-8"), issuer_pass.encode("utf-8"), profile)
+    cert = x509.load_pem_x509_certificate((output / "online" / profile.root_cert_file).read_bytes())
     info("Root certificate SHA-256 (save and verify independently): "
          + cert.fingerprint(hashes.SHA256()).hex().upper())
     return issuer_pass
@@ -289,7 +291,11 @@ def main() -> int:
             fail("Existing CA-Panel database files detected. Refusing to issue a new "
                  "Root CA identity over old issuance records. Restore your CA or "
                  "migrate the database explicitly.")
-        issuer_password = generate_ca()
+        from scripts.ca_profile import CAProfile
+        # Validate all creation-time subject, validity, size and filename options
+        # BEFORE prompting for any Root/Issuer passphrase or writing CA files.
+        profile = CAProfile.from_mapping(values)
+        issuer_password = generate_ca(profile)
         content = assign(content, "CA_KEY_PASSWORD", dotenv_secret(issuer_password))
         write_env(content)
         info(".env created/updated with Issuing CA password (mode 0600).")
@@ -327,7 +333,12 @@ def main() -> int:
         else:
             info("Existing .env preserved; no password or setting overwritten.")
 
-    if not args.no_start and (ROOT / "secrets" / "offline" / "root-key.pem").is_file():
+    offline_dir = ROOT / "secrets" / "offline"
+    if not args.no_start and offline_dir.is_dir() and any(
+        entry.is_file() and (entry.name.endswith("-key.pem") or
+                             entry.name == values.get("CA_ROOT_KEY_FILE", "root-key.pem"))
+        for entry in offline_dir.iterdir()
+    ):
         fail("Offline Root CA private key is still inside this project. "
              "Move secrets/offline/ to protected OFFLINE storage before starting the service.")
     if data.exists() and (data.is_symlink() or not data.is_dir()):
