@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/static/v3.css?v=5">
   <link rel="stylesheet" href="/static/v4.css?v=5">
   <link rel="stylesheet" href="/static/v5.css?v=5">
-  <script src="/static/app.js?v=5" defer></script>
+  <script src="/static/app.js?v=6" defer></script>
   <script src="/static/navigation.js?v=5" defer></script>
 </head>
 <body>
@@ -57,7 +57,7 @@
         </nav>
       </div>
       <div class="sidebar-bottom">
-        <div class="side-info"><span class="side-info-icon"><svg class="icon"><use href="#i-shield"/></svg></span><strong>حریم خصوصی، اولویت ما</strong><p>صدور پس از احراز مالکیت دامنه و با امضای CA شما.</p></div>
+        <div class="side-info"><span class="side-info-icon"><svg class="icon"><use href="#i-shield"/></svg></span><strong id="ca-sidebar-name">CA-Panel</strong><p id="ca-sidebar-org">صدور پس از احراز مالکیت دامنه و با امضای CA شما.</p></div>
         <a class="sidebar-docs" href="https://github.com/dr-reza-khaleghifar/CA-Panel#readme" target="_blank" rel="noopener noreferrer"><span>مستندات پروژه</span><svg class="icon"><use href="#i-external"/></svg></a>
         <div class="sidebar-foot" dir="ltr">CA-Panel <span>·</span> v0.5</div>
       </div>
@@ -70,7 +70,7 @@
           <div class="breadcrumbs"><span>فضای کاری</span><span class="crumb-sep">/</span><strong>صدور گواهی</strong></div>
         </div>
         <div class="topbar-actions">
-          <span class="header-status"><span class="status-dot"></span>سامانه CA خصوصی</span>
+          <span class="header-status"><span class="status-dot"></span><span id="ca-topbar-name">سامانه CA خصوصی</span></span>
           <button id="theme-toggle" type="button" class="icon-button" aria-label="فعال کردن حالت تیره" title="تغییر تم"><svg class="icon theme-moon"><use href="#i-moon"/></svg><svg class="icon theme-sun"><use href="#i-sun"/></svg></button>
         </div>
       </header>
@@ -147,8 +147,8 @@
 
           <section class="form-stage hidden" id="success-panel" aria-labelledby="success-heading">
             <div class="success-top"><div class="success-mark"><svg class="icon"><use href="#i-check"/></svg></div><div><div class="step-caption success-caption">صدور موفق</div><h3 id="success-heading">گواهی شما آماده است!</h3><p>فایل‌های دامنه <strong id="issued-domain" dir="ltr">—</strong> را از این بخش دریافت کنید.</p></div></div>
-            <div class="issued-summary"><div><span>وضعیت</span><strong class="summary-verified"><svg class="icon"><use href="#i-check"/></svg> صادرشده</strong></div><div><span>مدت اعتبار</span><strong>۳۰ روز (حداکثر)</strong></div><div><span>انقضای گواهی</span><strong id="certificate-expiry">—</strong></div></div>
-            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge"><svg class="icon"><use href="#i-lock"/></svg> محرمانه · فقط یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا ۱۰ دقیقه باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span></div><a id="download-button" href="#" class="btn btn-primary" download><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
+            <div class="issued-summary"><div><span>وضعیت</span><strong class="summary-verified"><svg class="icon"><use href="#i-check"/></svg> صادرشده</strong></div><div><span>مدت اعتبار</span><strong id="certificate-validity">۳۰ روز (حداکثر)</strong></div><div><span>انقضای گواهی</span><strong id="certificate-expiry">—</strong></div></div>
+            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge"><svg class="icon"><use href="#i-lock"/></svg> محرمانه · فقط یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا <span id="zip-max-age">حداکثر ۱۰ دقیقه</span> باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span></div><a id="download-button" href="#" class="btn btn-primary" download><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
             <div class="files-heading"><h4>فایل‌های گواهی</h4><p>این فایل‌ها کلید خصوصی ندارند و جداگانه قابل دریافت‌اند.</p></div>
             <div class="files-grid">
               <a id="leaf-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>گواهی دامنه</strong><small>certificate.crt</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
@@ -180,7 +180,9 @@
           </div>
         </section>
 
-        <section id="security" class="trust-section" tabindex="-1" aria-labelledby="security-heading"><span class="trust-symbol"><svg class="icon"><use href="#i-shield"/></svg></span><div><h2 id="security-heading">شفافیت درباره امنیت و اعتماد</h2><p>گواهی‌های این سامانه با <strong>CA خصوصی شما</strong> امضا می‌شوند و به‌طور پیش‌فرض مورد اعتماد مرورگرهای عمومی نیستند. برای استفاده عمومی از پنل حتماً HTTPS فعال باشد. کلید خصوصی موقتاً در حافظه سرور تولید می‌شود و در دیتابیس نگهداری نمی‌شود.</p></div><a href="https://github.com/dr-reza-khaleghifar/CA-Panel/blob/main/docs/OPERATIONS.md" target="_blank" rel="noopener noreferrer">راهنمای امنیت <svg class="icon"><use href="#i-arrow"/></svg></a></section>
+        <section id="security" class="trust-section" tabindex="-1" aria-labelledby="security-heading"><span class="trust-symbol"><svg class="icon"><use href="#i-shield"/></svg></span><div><h2 id="security-heading">شفافیت درباره امنیت و اعتماد</h2><p>گواهی‌های این سامانه با <strong>CA خصوصی شما</strong> امضا می‌شوند و به‌طور پیش‌فرض مورد اعتماد مرورگرهای عمومی نیستند. برای استفاده عمومی از پنل حتماً HTTPS فعال باشد. کلید خصوصی موقتاً در حافظه سرور تولید می‌شود و در دیتابیس نگهداری نمی‌شود.</p>
+          <div class="ca-info" aria-label="مشخصات عمومی گواهی‌های CA"><div><span>نام CA صادرکننده (از گواهی واقعی)</span><strong id="ca-issuer-name" dir="auto">—</strong></div><div><span>نام Root CA (از گواهی واقعی)</span><strong id="ca-root-name" dir="auto">—</strong></div><div class="ca-info-fingerprint"><span>اثر انگشت SHA-256 ریشه</span><code id="ca-root-fingerprint" dir="ltr">—</code></div></div>
+          </div><a href="https://github.com/dr-reza-khaleghifar/CA-Panel/blob/main/docs/OPERATIONS.md" target="_blank" rel="noopener noreferrer">راهنمای امنیت <svg class="icon"><use href="#i-arrow"/></svg></a></section>
         <footer class="footer"><span>© CA-Panel · Private PKI</span><span>طراحی شده برای صدور ساده و قابل کنترل گواهی</span></footer>
       </main>
     </div>
