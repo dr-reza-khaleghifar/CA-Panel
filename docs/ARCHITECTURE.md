@@ -11,7 +11,7 @@ Browser ── HTTPS (optional Caddy/ACME) ── FastAPI (single worker)
    │                                             │
    │                                        signed leaf cert
    ▼                                             ▼
-User creates private key and CSR locally      cert + chain
+Browser Web Crypto creates private key and CSR locally      cert + chain
 
 Offline Root CA signing key ── one-time signing ── Issuing CA certificate
          NEVER mounted in the API container
@@ -40,3 +40,9 @@ Offline Root CA signing key ── one-time signing ── Issuing CA certificat
 - Revocation / CRL and OCSP, certificate inventory and policy enforcement
 - HSM/KMS/PKCS#11 key protection, intermediate rotation tooling, secure backups
 - DNSSEC validation, trusted authoritative-resolution strategy, monitoring, abuse mitigation
+
+## Automatic browser issuance (MVP)
+
+The user adds the DNS TXT, presses the verification button once, and the browser creates a 2048-bit RSA keypair with `crypto.subtle.generateKey()`. It serializes a locally signed PKCS#10 CSR (CN and SAN restricted to the verified domain) and sends **only the CSR** to the existing issuance endpoint. The private key stays within the browser JavaScript process and is exported to a client-side ZIP together with returned leaf/intermediate/root PEM files. There are no additional server-side dependencies or private-key storage changes.
+
+The ZIP contains an **unencrypted** private key; downloads/backups must be protected by the user, and private keys cannot be recovered from the server. Secure browser context (HTTPS or localhost) is mandatory. Automatic certificate creation is triggered after user-initiated DNS verification; **background auto-renewal or scheduled retries are not implemented**. Failed issuance should be retried while the same browser tab holds the generated key; a certificate already issued for that challenge cannot safely be paired with a new key.

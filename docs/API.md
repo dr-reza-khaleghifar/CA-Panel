@@ -66,3 +66,9 @@ Download issued public leaf + issuing CA + root CA chain as PEM. Returns 404 bef
 
 ### Error model
 FastAPI returns e.g. `{"detail":"..."}` and HTTP 403/404/409/410/422/429. Any API consumer should handle DNS propagation delays and create a fresh request after expiry.
+
+## Browser automatic issuance and downloadable ZIP
+
+The browser UI now automates key and CSR generation **locally**, after the user presses the DNS verification / issuance button. The backend API is unchanged: it accepts only a CSR at `POST /api/requests/{request_id}/issue`, verifies the current domain-bound DNS TXT challenge, and signs the certificate. **Do not send private keys to any API endpoint.**
+
+Using the Web Crypto API requires a secure browser context (HTTPS or local `localhost`). The browser exports a PKCS#8 RSA-2048 private key locally, creates and signs a PKCS#10 CSR with CN and exactly one DNS SAN, then downloads a local ZIP containing `.key`, `.crt`, `-fullchain.pem`, the issuing and root CA certificates, and a README. The ZIP assembly runs fully in the browser, not in the API container. The private key is unencrypted and does not survive a page reload.

@@ -127,3 +127,11 @@ docker compose exec api python -m app.dns_debug --request-id YOUR_REQUEST_ID
 The active lookup resolver should now show the chosen IP(s). If it reports `MATCH` and is not expired, press **Verify DNS** in the UI. Do not bypass DNS proof or change any challenge tokens.
 
 The default `DNS_RESOLVERS=` uses the container's system DNS. Only literal IP addresses are accepted (maximum three). This setting sends DNS queries for certificate challenges to the chosen resolver(s); use trusted resolvers appropriate for your privacy/network requirements. Firewall restrictions may block public DNS over UDP/TCP 53. A cached negative DNS response can temporarily persist after creation, and a new challenge may be needed if the existing one expired (one-hour lifetime). When all resolvers fail the program denies verification (fail closed).
+
+## Auto-issue UI and key download (browser only)
+
+The frontend now generates RSA-2048 + PKCS#10 CSR with Web Crypto, requiring HTTPS or localhost. It signs no certificates locally: domain ownership must be verified via the normal challenge before the server issues a certificate. The CSR, and **not** the private key, goes to the API. The browser creates a ZIP containing a PKCS#8 **unencrypted private key**, leaf CRT, nginx fullchain PEM (leaf + intermediate), issuing CA and public root CA, and local setup instructions. The ZIP is NOT encrypted or backed up by the server. Recommend full-disk encryption, secure storage, and `chmod 600 <domain>.key` after extraction.
+
+Some browsers block automatic downloads after asynchronous key generation; the success screen offers a manual ZIP download button. Download the ZIP before closing the page. Neither the API nor the browser can recover a lost key after refresh. Automatic UI issuance **does not mean automatic renewal**. A new challenge and fresh proof are needed for each new certificate. External CSR clients continue to work unchanged.
+
+Do not weaken HTTPS or the verification logic to make the UI work from a nonsecure browser context; expose the panel behind Caddy HTTPS in public deployments. A compromised frontend script could steal browser-generated keys, so serve all frontend code over trusted HTTPS and restrict modifications to the repo/static assets.
