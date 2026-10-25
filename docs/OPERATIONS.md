@@ -97,7 +97,7 @@ Interpret the results:
 - **TXT values returned but NO MATCH:** Copy the current request's entire value from the panel. An old token from an earlier request does not work. Avoid extra spaces, embedded quotes, or a wrong `www` subdomain. Normal quotes added by `dig` when rendering TXT values are fine. Multiple TXT RDATA chunks are joined automatically.
 - **Public DNS resolves but container does not:** Compare `dig TXT _ca-panel.example.org @1.1.1.1 +short` (from the host, if `dig` is installed) with the command above. Check Docker DNS resolution, negative caching, firewall and upstream nameservers; CA-Panel does not bypass the configured resolver automatically.
 - **Timeout / SERVFAIL:** DNS connectivity or upstream resolver issue; check Docker's DNS network and DNS servers. Do not disable ownership verification.
-- **Expired:** Challenges expire after one hour and each has at most ten verification attempts. Create a new request and publish its newly generated token; do not reuse the previous TXT value.
+- **Expired:** Challenges expire after the configured TTL (default one hour) and each has a configurable verification-attempt limit (default ten). Create a new request and publish its newly generated token; do not reuse the previous TXT value.
 
 You can also identify the authoritative nameservers using `dig NS example.org +short` and query one of them directly using `dig @<authoritative-nameserver> TXT _ca-panel.example.org +short` from a host with `dig`. Do not share `.env`, private CA keys, or full challenge tokens with third parties.
 
@@ -139,7 +139,7 @@ Do not weaken HTTPS or the verification logic to make the UI work from a nonsecu
 
 ## Server-generated keys and one-time ZIP links
 
-After successful DNS proof, `POST /api/requests/{rid}/issue-server` generates an RSA-2048 key on the API server, stores only the signed **public** certificate in SQLite, and returns a one-time, ten-minute ZIP capability URL. The private key and ZIP are temporarily in *process RAM*, **not on disk, SQLite or Github**. This feature intentionally means the CA server can see end-user TLS private keys during issuance.
+After successful DNS proof, `POST /api/requests/{rid}/issue-server` generates an RSA private key (default 2048-bit, configurable) on the API server, stores only the signed **public** certificate in SQLite, and returns a one-time ZIP capability URL (default ten minutes, configurable shorter). The private key and ZIP are temporarily in *process RAM*, **not on disk, SQLite or Github**. This feature intentionally means the CA server can see end-user TLS private keys during issuance.
 
 - **HTTPS is mandatory for internet users.** Keep the API bound to loopback and place the frontend behind the configured HTTPS Caddy proxy. Never expose port 8000/8080 publicly, never send a private ZIP over untrusted HTTP.
 - Keep `--workers 1`; the download registry is in-process RAM. Restarting/redeploying destroys pending downloads. If a link is consumed/expired/lost, the user must submit a new domain request, complete TXT validation again and generate a **new key**. A previously issued request cannot mint another private-key URL.

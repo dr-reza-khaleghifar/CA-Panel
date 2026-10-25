@@ -166,3 +166,5 @@ html[data-theme=dark] .private-download{background:linear-gradient(110deg,#193e3
 .ca-info-fingerprint{grid-column:1/-1}
 .ca-info code{display:block;text-align:left;color:var(--primary);font:600 11px ui-monospace,monospace;overflow-wrap:anywhere;word-break:break-word}
 @media(max-width:480px){.ca-info{grid-template-columns:1fr}.ca-info-fingerprint{grid-column:auto}}
+
+.hero-metrics strong b{font:inherit}

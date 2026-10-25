@@ -25,6 +25,9 @@ async function loadSystemInformation() {
     setLabel('ca-root-name', data.root_common_name);
     setLabel('ca-root-fingerprint', data.root_sha256);
     if (Number.isInteger(data.certificate_validity_days)) {
+      setLabel('hero-validity-days', String(data.certificate_validity_days));
+    }
+    if (Number.isInteger(data.certificate_validity_days)) {
       setLabel('certificate-validity', data.certificate_validity_days.toLocaleString('fa-IR') + ' روز (حداکثر)');
     }
     if (Number.isInteger(data.download_ttl_seconds)) {

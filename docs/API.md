@@ -76,7 +76,7 @@ Using the Web Crypto API requires a secure browser context (HTTPS or local `loca
 
 ## Server-side issuance (default UI flow)
 
-`POST /api/requests/{request_id}/issue-server` — **no CSR payload required**. Validates the live DNS TXT challenge again, generates a new RSA-2048 private key and matching CSR on the API server, signs a 30-day certificate, and creates a one-time ZIP in **process memory only**. The PEM private key is not written to disk/SQLite. Returns HTTP 201:
+`POST /api/requests/{request_id}/issue-server` — **no CSR payload required**. Validates the live DNS TXT challenge again, generates a new RSA private key (default 2048-bit) and matching CSR on the API server, signs a certificate (default 30 days; configurable via .env), and creates a one-time ZIP in **process memory only**. The PEM private key is not written to disk/SQLite. Returns HTTP 201:
 
 ```json
 {
@@ -92,7 +92,7 @@ Using the Web Crypto API requires a secure browser context (HTTPS or local `loca
 }
 ```
 
-- The capability URL includes a private key; treat it as a **secret bearer credential**. It may be downloaded **once** and expires after **10 minutes**, including if no one uses it. Do not log, share, bookmark, prefetch or preview it. Always serve the public panel over HTTPS; the local-only Docker binding is not a public endpoint.
+- The capability URL includes a private key; treat it as a **secret bearer credential**. It may be downloaded **once** and expires after the configured TTL (**10 minutes maximum**), including if no one uses it. Do not log, share, bookmark, prefetch or preview it. Always serve the public panel over HTTPS; the local-only Docker binding is not a public endpoint.
 - `GET /api/downloads/{capability}` returns `application/zip` with `<domain>.key`, `<domain>.crt`, `<domain>-fullchain.pem`, `issuing-ca.pem`, `root-ca.pem`, and `README.txt`. Subsequent requests return HTTP 404. The ZIP is not password protected.
 - Public artifacts: `GET /api/requests/{request_id}/leaf.crt` (leaf only), `GET /api/requests/{request_id}/fullchain.pem` (leaf + issuer), `GET /api/issuer.pem`, `GET /api/ca.pem`. The older `/certificate` route remains for compatibility.
 - At most 100 unexpired private ZIPs are retained in process memory. Restarting the container drops all pending ZIPs. If the secret link is consumed/lost, start a **new DNS request**; the original key cannot be recovered.
