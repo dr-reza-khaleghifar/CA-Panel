@@ -57,3 +57,38 @@ bash install.sh --help
 - این نصاب **فونت را دانلود نمی‌کند** و مشکل گواهی HTTPS شبکه برای GitHub را با غیرفعال‌کردن TLS دور نمی‌زند.
 - هنگام ساخت CA جدید، اگر نصب بسته‌های Python به‌دلیل SSL شبکه شکست خورد، گواهی‌های معتبر شبکه را تنظیم یا از محیط پکیج‌های قابل اعتماد/آفلاین استفاده کنید؛ `pip --trusted-host` و `curl -k` راه‌حل امنی نیستند.
 - چون اجرای پروژه کلیدهای TLS کاربران را موقتاً در RAM سرور می‌سازد، انتشار عمومی فقط با HTTPS معتبر و کنترل دسترسی اضافی توصیه می‌شود.
+
+
+## تنظیم مشخصات CA قبل از ساخت اولیه
+
+در نصب کاملاً جدید، **پیش از اجرای** `bash install.sh --init-ca`، فایل `.env.example` را به `.env` کپی کنید و مشخصات دلخواه را داخل `.env` تنظیم کنید. اگر `.env` موجود است آن را بازنویسی نکنید.
+
+```dotenv
+# مشخصات واقعی Subject در گواهی‌های Root و Issuing
+CA_ROOT_CN=Example Offline Root CA
+CA_ISSUER_CN=Example Issuing CA
+CA_ROOT_ORGANIZATION=Example Organization
+CA_ISSUER_ORGANIZATION=Example Organization
+
+# اعتبار و کلیدهای خود CA
+CA_ROOT_VALIDITY_DAYS=3650
+CA_ISSUER_VALIDITY_DAYS=365
+CA_ROOT_KEY_BITS=3072
+CA_ISSUER_KEY_BITS=3072
+
+# نام فایل‌های PEM ایجادشده
+CA_ROOT_KEY_FILE=root-key.pem
+CA_ROOT_CERT_FILE=root-cert.pem
+CA_ISSUER_KEY_FILE=issuer-key.pem
+CA_ISSUER_CERT_FILE=issuer-cert.pem
+```
+
+در مرحله ساخت `install.sh --init-ca`، مشخصات بررسی و سپس برای ساخت **CA جدید** استفاده می‌شوند؛ این گزینه هیچ‌وقت یک CA موجود را دوباره صادر نمی‌کند. Root Key فقط در `secrets/offline` تولید می‌شود، در حالی که فایل‌های `issuer-key.pem`، `issuer-cert.pem` و گواهی عمومی Root در `secrets/online` قرار دارند (یا نام‌های تنظیم‌شده در env).
+
+- نام‌های گواهی حداکثر ۶۴ بایت UTF-8 هستند. نام نمایشی رابط `CA_DISPLAY_NAME` جدا از `CA_ROOT_CN` و `CA_ISSUER_CN` است.
+- اعتبار Root بین ۳۶۵ و ۷۳۰۰ روز، و Issuing CA بین ۳۰ و ۳۶۵۰ روز است؛ Issuing باید حداقل ۷ روز زودتر از Root منقضی شود.
+- کلیدهای RSA خود Root/Issuing CA می‌توانند ۳۰۷۲ یا ۴۰۹۶ بیت باشند. `SERVER_KEY_BITS` صرفاً اندازه کلید گواهی‌های صادرشده برای دامنه‌ها را تنظیم می‌کند.
+- `CA_ROOT_KEY_FILE` فقط مربوط به فایل رمزگذاری‌شده آفلاین است؛ به کانتینر منتقل نمی‌شود. سایر سه نام PEM با تنظیمات اجرای فعلی نیز یکسان‌اند.
+- ویرایش این مشخصات در `.env` **پس از ساخت CA**، نام، اعتبار یا اندازه کلید گواهی‌های موجود را عوض نمی‌کند. برای تغییر هویت CA، فرایند رسمی تعویض/چرخش CA و توزیع اعتماد جدید لازم است.
+
+برای اجرای اسکریپت سنتی ساخت CA نیز می‌توانید روی کامپیوتر امن از `python scripts/init_ca.py --env .env --output secrets` استفاده کنید.

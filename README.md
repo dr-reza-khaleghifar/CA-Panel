@@ -158,3 +158,7 @@ docker compose up -d --build --force-recreate api
 curl http://127.0.0.1:8080/api/system
 ```
 جزئیات: [راهنمای تنظیمات و امنیت](docs/OPERATIONS.md).
+
+
+### مشخصات Root CA و Issuing CA در `.env`
+برای **ساخت اولیه یک CA جدید** می‌توانید علاوه بر مسیرها و نام فایل‌ها، `CA_ROOT_CN` و `CA_ISSUER_CN` (نام واقعی داخل گواهی)، `CA_ROOT_ORGANIZATION` و `CA_ISSUER_ORGANIZATION`، مدت اعتبار `CA_ROOT_VALIDITY_DAYS` و `CA_ISSUER_VALIDITY_DAYS` و اندازه کلید `CA_ROOT_KEY_BITS` و `CA_ISSUER_KEY_BITS` را از `.env` تعیین کنید. همچنین `CA_ROOT_KEY_FILE` نام کلید آفلاین Root را مشخص می‌کند. اسکریپت‌های `bash install.sh --init-ca` و `python scripts/init_ca.py --env .env` این مقادیر را می‌خوانند. **تغییر این پارامترها بعد از ساخت CA، گواهی‌های قبلی را تغییر نمی‌دهد و باعث بازتولید کلیدها نمی‌شود.** جزئیات در [راهنمای نصب اولیه](docs/FIRST_RUN.md) و [نمونه env](.env.example) آمده است.

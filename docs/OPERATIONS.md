@@ -188,3 +188,11 @@ The last endpoint is public metadata only; `/healthz` remains unchanged. For sec
 ## Automated first-run installer
 
 Use `bash install.sh` for an existing online CA, or `bash install.sh --init-ca` **only on a trusted administrative workstation** to provision a genuinely new Root/Issuer pair. The first-run installer never overwrites keys or an existing `.env`; it refuses partial CA folders, requires two distinct passphrases for new CA generation, writes fresh `.env` with `0600` mode and checks the local `/healthz` endpoint before reporting success. For safety, new CA generation deliberately does not auto-start the panel until the offline Root key has been moved off-server. See [FIRST_RUN.md](FIRST_RUN.md).
+
+## Root and Issuing CA creation parameters in `.env`
+For **new CA creation only**, the secure administrative workstation can read these options from `.env`:
+`CA_ROOT_CN`, `CA_ISSUER_CN`, `CA_ROOT_ORGANIZATION`, `CA_ISSUER_ORGANIZATION`, `CA_ROOT_VALIDITY_DAYS`, `CA_ISSUER_VALIDITY_DAYS`, `CA_ROOT_KEY_BITS`, `CA_ISSUER_KEY_BITS`, `CA_ROOT_KEY_FILE`, `CA_ROOT_CERT_FILE`, `CA_ISSUER_KEY_FILE` and `CA_ISSUER_CERT_FILE`.
+
+`bash install.sh --init-ca` validates these parameters and writes the selected filenames without ever overwriting existing keys. The direct CLI `python scripts/init_ca.py --env .env --output secrets` also accepts these options. No Root private key is passed through Compose or placed in `.env`. The Root key is generated offline in `secrets/offline/` and must be transferred off the server before normal installation.
+
+**CA subjects are signed into certificates.** Altering their env fields after CA provisioning does not change an existing issuer/root certificate. Changing the root identity or cryptographic properties requires explicit CA migration, trust-anchor distribution, and protection of issuance history. The runtime `/api/system` endpoint reports the actual X.509 subjects and public root fingerprint, not hypothetical values from env.
