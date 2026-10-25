@@ -127,3 +127,15 @@ def test_no_forced_recreate_for_idempotent_restart(tmp_path, monkeypatch):
     assert install.main() == 0
     assert ("docker", "compose", "up", "-d", "--build", "api") in commands
     assert all("--force-recreate" not in cmd for cmd in commands)
+
+
+def test_new_ca_mode_rejects_existing_issuance_database(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch)
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "ca-panel.sqlite3").write_bytes(b"SQLite format 3")
+    monkeypatch.setattr(sys, "argv", ["install.py", "--init-ca"])
+    monkeypatch.setattr(install, "generate_ca",
+                        lambda: pytest.fail("Must not generate new Root CA over existing records"))
+    with pytest.raises(RuntimeError, match="database files"):
+        install.main()
