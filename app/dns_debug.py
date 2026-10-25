@@ -40,7 +40,7 @@ def main() -> int:
     if bool(args.domain) == bool(args.request_id):
         parser.error("Provide either a domain or --request-id")
 
-    settings = Settings()
+    settings = Settings.from_env()
     if args.domain:
         try:
             domain = normalize_domain(args.domain)
