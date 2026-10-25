@@ -223,3 +223,21 @@ def test_private_key_is_not_saved_in_sqlite(client, tmp_path):
         row = conn.execute("SELECT cert_pem, serial_hex FROM challenges WHERE id=?", (rid,)).fetchone()
     assert row["cert_pem"].startswith("-----BEGIN CERTIFICATE-----")
     assert "PRIVATE KEY" not in row["cert_pem"]
+
+
+def test_downloads_are_cleared_at_shutdown(tmp_path):
+    create_ca(tmp_path / "secrets", b"root-secret-long-123", b"issuer-secret-long-123")
+    settings = Settings(
+        db_path=tmp_path / "data" / "panel.db",
+        ca_dir=tmp_path / "secrets" / "online",
+        ca_key_password="issuer-secret-long-123",
+    )
+    api = create_app(settings)
+    api.state.dns_checker = lambda name, expected: True
+    with TestClient(api) as test_client:
+        rid = test_client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
+        assert test_client.post(f"/api/requests/{rid}/verify").status_code == 200
+        response = test_client.post(f"/api/requests/{rid}/issue-server")
+        assert response.status_code == 201, response.text
+        assert len(api.state.downloads) == 1
+    assert not api.state.downloads

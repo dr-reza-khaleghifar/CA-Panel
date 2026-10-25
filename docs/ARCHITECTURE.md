@@ -11,7 +11,7 @@ Browser ── HTTPS (optional Caddy/ACME) ── FastAPI (single worker)
    │                                             │
    │                                        signed leaf cert
    ▼                                             ▼
-Browser Web Crypto creates private key and CSR locally      cert + chain
+Web UI requests server-side key generation and private ZIP   cert + chain
 
 Offline Root CA signing key ── one-time signing ── Issuing CA certificate
          NEVER mounted in the API container
@@ -20,7 +20,7 @@ Offline Root CA signing key ── one-time signing ── Issuing CA certificat
 - Trust model: only independently trusted Root CA fingerprints should be installed in clients. This system does not participate in OS/browser public trust programs. Any attacker holding the online Issuing CA key **and** its passphrase can issue certificates for any name. Limit access and keep root offline.
 - Domain validation: the requester creates a challenge and publishes an exact, random TXT value under `_ca-panel.<domain>`. Request IDs and challenge tokens are cryptographically random. Challenges expire after one hour. DNS is rechecked just before signing. DNS is queried via the configured resolver; this MVP does not implement DNSSEC validation or direct authoritative-name-server querying.
 - Certificate profile: single DNS SAN, 30-day lifetime, EKU serverAuth, CA=false, RSA or ECDSA leaf key; other requested CSR extensions are not copied. No wildcard, IP, multi-domain or client authentication certificates.
-- Data: SQLite holds domain, token, requester IP, verification attempts, timestamps, signed public certificates and serials. No end-user private keys. Expired **unissued** requests older than seven days are periodically pruned on new requests. Issued records persist until manually archived/purged.
+- Data: SQLite holds domain, token, requester IP, verification attempts, timestamps, signed public certificates and serials. End-user private keys are created temporarily in server RAM (not persisted to SQLite or disk). Expired **unissued** requests older than seven days are periodically pruned on new requests. Issued records persist until manually archived/purged.
 - Key separation: offline root private key encrypted under a separate passphrase. Encrypted intermediate signing key is mounted into the running container; the decryption passphrase is passed through an environment variable. This is not hardware-backed isolation.
 - Capacity: one Uvicorn worker, SQLite, synchronous DNS queries executed in FastAPI's worker pool. Suitable for small private installations; not a large public multi-tenant CA.
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import io
 import threading
 import zipfile
@@ -11,7 +12,7 @@ import re
 import secrets
 import sqlite3
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from functools import partial
 from datetime import datetime, timedelta, timezone
@@ -304,7 +305,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         configured_dns_resolver(settings.dns_resolvers)
         if not hasattr(app.state, "dns_checker"):
             app.state.dns_checker = partial(dns_has_challenge, dns_resolvers=settings.dns_resolvers)
-        yield
+
+        async def reap_expired_private_downloads():
+            # Expiry is checked on download; also sweep to avoid lingering in-memory keys.
+            while True:
+                await asyncio.sleep(30)
+                with app.state.downloads_lock:
+                    now = time.monotonic()
+                    for token, (expires, _, _) in list(app.state.downloads.items()):
+                        if expires <= now:
+                            del app.state.downloads[token]
+
+        sweeper = asyncio.create_task(reap_expired_private_downloads())
+        try:
+            yield
+        finally:
+            sweeper.cancel()
+            with suppress(asyncio.CancelledError):
+                await sweeper
+            with app.state.downloads_lock:
+                app.state.downloads.clear()
 
     app = FastAPI(title="CA-Panel", version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.downloads = {}
