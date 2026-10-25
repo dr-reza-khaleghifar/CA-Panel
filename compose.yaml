@@ -16,14 +16,27 @@ services:
     ports:
       - "127.0.0.1:8080:8000"
     environment:
-      DB_PATH: /data/ca-panel.sqlite3
-      CA_DIR: /run/ca
+      DB_PATH: "${DB_PATH:-/data/ca-panel.sqlite3}"
+      CA_DIR: "${CA_DIR:-/run/ca}"
       CA_KEY_PASSWORD: "${CA_KEY_PASSWORD:?Set CA_KEY_PASSWORD in .env}"
+      CA_DISPLAY_NAME: "${CA_DISPLAY_NAME:-CA-Panel}"
+      CA_ORGANIZATION: "${CA_ORGANIZATION:-Private CA}"
+      CA_ISSUER_KEY_FILE: "${CA_ISSUER_KEY_FILE:-issuer-key.pem}"
+      CA_ISSUER_CERT_FILE: "${CA_ISSUER_CERT_FILE:-issuer-cert.pem}"
+      CA_ROOT_CERT_FILE: "${CA_ROOT_CERT_FILE:-root-cert.pem}"
+      CERT_VALIDITY_DAYS: "${CERT_VALIDITY_DAYS:-30}"
+      SERVER_KEY_BITS: "${SERVER_KEY_BITS:-2048}"
+      CHALLENGE_SECONDS: "${CHALLENGE_SECONDS:-3600}"
+      MAX_REQUESTS_PER_HOUR: "${MAX_REQUESTS_PER_HOUR:-20}"
+      MAX_TOTAL_PER_HOUR: "${MAX_TOTAL_PER_HOUR:-200}"
+      MAX_VERIFICATIONS: "${MAX_VERIFICATIONS:-10}"
+      DOWNLOAD_TTL_SECONDS: "${DOWNLOAD_TTL_SECONDS:-600}"
+      MAX_PENDING_DOWNLOADS: "${MAX_PENDING_DOWNLOADS:-100}"
       TRUST_PROXY_HEADERS: "${TRUST_PROXY_HEADERS:-0}"
       DNS_RESOLVERS: "${DNS_RESOLVERS:-}"
     volumes:
-      - ./data:/data
-      - ./secrets/online:/run/ca:ro
+      - ${DATA_HOST_DIR:-./data}:/data
+      - ${CA_ONLINE_HOST_DIR:-./secrets/online}:${CA_DIR:-/run/ca}:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
       interval: 30s
