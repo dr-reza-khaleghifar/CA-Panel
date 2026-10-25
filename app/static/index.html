@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="صدور گواهی TLS امضا شده با CA خصوصی پس از تایید مالکیت دامنه">
+  <title>CA-Panel | صدور گواهی اختصاصی</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="صفحه اصلی CA Panel"><span class="brandmark">✦</span> CA<span class="brand-light">Panel</span></a>
+      <span class="pill"><span class="status-dot"></span> Private PKI · DNS Verification</span>
+    </header>
+    <main>
+      <div class="hero">
+        <div class="eyebrow">مدیریت گواهی دیجیتال</div>
+        <h1>گواهی TLS، با <span>امضای CA شما</span></h1>
+        <p>دامنه را ثبت کنید، مالکیت آن را با DNS تأیید کنید و گواهی امضاشده دریافت کنید. کلید خصوصی وب‌سایت شما هرگز به این سامانه ارسال نمی‌شود.</p>
+      </div>
+      <div class="steps" aria-label="مراحل صدور">
+        <div class="step selected" id="step-1"><b>۱</b><span>ثبت دامنه</span></div>
+        <div class="bar"></div>
+        <div class="step" id="step-2"><b>۲</b><span>تأیید DNS</span></div>
+        <div class="bar"></div>
+        <div class="step" id="step-3"><b>۳</b><span>صدور گواهی</span></div>
+      </div>
+      <section class="panel" id="domain-panel">
+        <div class="panel-head"><div><div class="step-caption">مرحله اول</div><h2>دامنه وب‌سایت</h2></div><span class="small-tag">بدون نیاز به حساب کاربری</span></div>
+        <form id="domain-form">
+          <label for="domain">آدرس دامنه</label>
+          <div class="field-group"><input id="domain" name="domain" required dir="ltr" autocomplete="url" placeholder="example.com یا https://example.com" maxlength="2048"><button class="primary" type="submit" id="domain-submit">ثبت درخواست <span aria-hidden="true">←</span></button></div>
+          <p class="help">دامنه باید قابل تأیید در DNS عمومی باشد. گواهی Wildcard و آدرس IP پشتیبانی نمی‌شوند.</p>
+        </form>
+      </section>
+      <section class="panel hidden" id="dns-panel">
+        <div class="panel-head"><div><div class="step-caption">مرحله دوم</div><h2>تأیید مالکیت دامنه</h2></div><span class="small-tag">DNS TXT</span></div>
+        <p>رکورد زیر را در تنظیمات DNS دامنه خود اضافه کنید. سپس روی «بررسی DNS» بزنید.</p>
+        <div class="kv"><span>نوع</span><div class="value">TXT</div></div>
+        <div class="kv"><span>نام رکورد (Host)</span><div class="copyline"><code id="dns-name" dir="ltr"></code><button class="subtle" type="button" data-copy="dns-name">کپی</button></div></div>
+        <div class="kv"><span>مقدار رکورد (Value)</span><div class="copyline"><code id="dns-value" dir="ltr"></code><button class="subtle" type="button" data-copy="dns-value">کپی</button></div></div>
+        <p class="help">برخی DNSها نام رکورد را نسبت به دامنه اصلی می‌خواهند؛ در این حالت فقط <code dir="ltr">_ca-panel</code> را وارد کنید. اعتبار درخواست یک ساعت است و انتشار DNS ممکن است زمان ببرد.</p>
+        <button id="verify-button" class="primary" type="button">بررسی DNS و ادامه ←</button>
+      </section>
+      <section class="panel hidden" id="issue-panel">
+        <div class="panel-head"><div><div class="step-caption">مرحله سوم</div><h2>صدور گواهی</h2></div><span class="small-tag">CSR</span></div>
+        <p>در سیستم خودتان کلید خصوصی و CSR بسازید؛ فقط متن CSR را در کادر زیر قرار دهید.</p>
+        <div class="command-wrap" dir="ltr"><code id="csr-command"></code><button type="button" class="subtle" data-copy="csr-command">کپی دستور</button></div>
+        <label for="csr">Certificate Signing Request (PEM)</label>
+        <textarea id="csr" dir="ltr" spellcheck="false" rows="8" placeholder="-----BEGIN CERTIFICATE REQUEST-----" maxlength="16384"></textarea>
+        <p class="help">این سامانه فقط گواهی دامنه تأییدشده را صادر می‌کند؛ هیچ‌وقت فایل کلید خصوصی (<code>.key</code>) را ارسال نکنید.</p>
+        <button id="issue-button" class="primary" type="button">صدور گواهی ۳۰ روزه ←</button>
+      </section>
+      <section class="panel hidden" id="success-panel">
+        <div class="success-icon" aria-hidden="true">✓</div>
+        <h2>گواهی با موفقیت صادر شد</h2>
+        <p>گواهی برای <strong id="issued-domain" dir="ltr"></strong> امضا شد. فایل زنجیره و گواهی را دانلود کنید و در وب‌سرورتان قرار دهید.</p>
+        <div class="actions"><button id="download-button" class="primary" type="button">دانلود fullchain.pem ↓</button><a href="/api/ca.pem" class="secondary" download="root-ca.pem">دانلود گواهی CA ریشه</a></div>
+        <p class="help" id="certificate-expiry"></p>
+      </section>
+      <div role="status" aria-live="polite" id="message" class="message hidden"></div>
+      <div class="notice"><strong>نکته مهم درباره اعتماد مرورگر</strong><p>این سامانه یک CA خصوصی است. گواهی صادرشده به‌طور پیش‌فرض در مرورگرهای عمومی مورد اعتماد نیست؛ فقط دستگاه‌هایی که گواهی ریشه CA را به‌صورت آگاهانه و از کانال معتبر نصب کرده‌اند به آن اعتماد می‌کنند. برای HTTPS عمومی معمولاً از Let's Encrypt استفاده کنید.</p></div>
+    </main>
+    <footer><span>CA-Panel · Open Source Private PKI</span><span>کلید وب‌سایت نزد خودتان باقی می‌ماند.</span></footer>
+  </div>
+</body>
+</html>

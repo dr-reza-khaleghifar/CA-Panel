@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.venv
+secrets
+data
+tests
+__pycache__
+*.pem
+*.key
+*.crt

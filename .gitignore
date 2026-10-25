@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+secrets/
+data/
+*.key
+*.pem
+*.crt
+.DS_Store
