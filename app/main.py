@@ -33,21 +33,8 @@ from pydantic import BaseModel, Field
 
 BASE = Path(__file__).resolve().parent
 DISALLOWED_SUFFIXES = {"local", "localhost", "internal", "test", "example", "invalid", "onion", "home", "arpa"}
-DOWNLOAD_TTL_SECONDS = 600  # one-time capability, 10 minutes
-MAX_PENDING_DOWNLOADS = 100  # bound in-memory retention
 
-
-@dataclass(frozen=True)
-class Settings:
-    db_path: Path = Path(os.getenv("DB_PATH", "/data/ca-panel.sqlite3"))
-    ca_dir: Path = Path(os.getenv("CA_DIR", "/run/ca"))
-    ca_key_password: str = os.getenv("CA_KEY_PASSWORD", "")
-    challenge_seconds: int = 3600
-    max_requests_per_hour: int = 20
-    max_total_per_hour: int = 200
-    max_verifications: int = 10
-    trust_proxy_headers: bool = os.getenv("TRUST_PROXY_HEADERS", "0") == "1"
-    dns_resolvers: str = os.getenv("DNS_RESOLVERS", "")
+from app.config import Settings
 
 
 class DomainInput(BaseModel):
@@ -154,12 +141,15 @@ def init_db(db_path: Path) -> None:
         """)
 
 
-def load_issuer(ca_dir: Path, password: str):
+def load_issuer(ca_dir: Path, password: str,
+                issuer_key_file: str = "issuer-key.pem",
+                issuer_cert_file: str = "issuer-cert.pem",
+                root_cert_file: str = "root-cert.pem"):
     if not password:
         raise RuntimeError("CA_KEY_PASSWORD must be set; never commit this secret")
     try:
         key = serialization.load_pem_private_key(
-            (ca_dir / "issuer-key.pem").read_bytes(), password=password.encode("utf-8")
+            (ca_dir / issuer_key_file).read_bytes(), password=password.encode("utf-8")
         )
     except (ValueError, TypeError) as exc:
         raise RuntimeError(
@@ -169,8 +159,8 @@ def load_issuer(ca_dir: Path, password: str):
             "and the mounted key file. See docs/OPERATIONS.md. "
             "Never disclose your passphrase."
         ) from exc
-    issuer = x509.load_pem_x509_certificate((ca_dir / "issuer-cert.pem").read_bytes())
-    root = x509.load_pem_x509_certificate((ca_dir / "root-cert.pem").read_bytes())
+    issuer = x509.load_pem_x509_certificate((ca_dir / issuer_cert_file).read_bytes())
+    root = x509.load_pem_x509_certificate((ca_dir / root_cert_file).read_bytes())
     key_public = key.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
     cert_public = issuer.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
     if key_public != cert_public:
@@ -183,7 +173,8 @@ def load_issuer(ca_dir: Path, password: str):
     return key, issuer, root
 
 
-def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certificate) -> x509.Certificate:
+def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certificate,
+                           validity_days: int = 30) -> x509.Certificate:
     try:
         csr = x509.load_pem_x509_csr(csr_pem.encode("ascii"))
         if not csr.is_signature_valid:
@@ -210,7 +201,7 @@ def certificate_for_domain(domain: str, csr_pem: str, key, issuer: x509.Certific
         raise ValueError(f"Invalid CSR: {exc}") from exc
 
     now = datetime.now(timezone.utc)
-    end = min(now + timedelta(days=30), issuer.not_valid_after_utc - timedelta(minutes=5))
+    end = min(now + timedelta(days=validity_days), issuer.not_valid_after_utc - timedelta(minutes=5))
     if end <= now + timedelta(days=1):
         raise ValueError("Issuer CA expires too soon; rotate it")
     return (
@@ -295,12 +286,16 @@ def public_view(row: sqlite3.Row) -> dict:
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    settings = settings or Settings()
+    settings = settings if settings is not None else Settings.from_env()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         init_db(settings.db_path)
-        app.state.ca = load_issuer(settings.ca_dir, settings.ca_key_password)
+        app.state.ca = load_issuer(
+            settings.ca_dir, settings.ca_key_password,
+            settings.ca_issuer_key_file, settings.ca_issuer_cert_file,
+            settings.ca_root_cert_file,
+        )
         # Validate DNS settings at startup rather than failing during issuance.
         configured_dns_resolver(settings.dns_resolvers)
         if not hasattr(app.state, "dns_checker"):
@@ -338,7 +333,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         return response
 
     @app.get("/", include_in_schema=False)
@@ -348,6 +343,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
+
+    @app.get("/api/system")
+    def system_information():
+        """Public settings and identities derived from real certificates; no secrets."""
+        _, issuer, root = app.state.ca
+
+        def common_name(cert: x509.Certificate) -> str:
+            names = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+            return names[0].value if names else cert.subject.rfc4514_string()
+
+        return {
+            "display_name": settings.ca_display_name,
+            "organization": settings.ca_organization,
+            "certificate_validity_days": settings.certificate_validity_days,
+            "server_key_bits": settings.server_key_bits,
+            "challenge_seconds": settings.challenge_seconds,
+            "download_ttl_seconds": settings.download_ttl_seconds,
+            "issuer_common_name": common_name(issuer),
+            "issuer_expires_at": issuer.not_valid_after_utc.isoformat(),
+            "root_common_name": common_name(root),
+            "root_sha256": root.fingerprint(hashes.SHA256()).hex().upper(),
+        }
 
     @app.get("/api/ca.pem")
     def root_certificate():
@@ -424,7 +441,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(403, "DNS proof no longer exists; restore TXT record")
         key, issuer, root = app.state.ca
         try:
-            cert = certificate_for_domain(row["domain"], body.csr_pem, key, issuer)
+            cert = certificate_for_domain(row["domain"], body.csr_pem, key, issuer,
+                                          settings.certificate_validity_days)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
@@ -450,7 +468,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
             raise HTTPException(403, "DNS proof no longer exists; restore TXT record")
 
-        server_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        server_key = rsa.generate_private_key(public_exponent=65537, key_size=settings.server_key_bits)
         csr = (x509.CertificateSigningRequestBuilder()
                .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, row["domain"])]))
                .add_extension(x509.SubjectAlternativeName([x509.DNSName(row["domain"])]), critical=False)
@@ -459,7 +477,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             cert = certificate_for_domain(
                 row["domain"], csr.public_bytes(serialization.Encoding.PEM).decode("ascii"),
-                issuer_key, issuer
+                issuer_key, issuer, settings.certificate_validity_days
             )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
@@ -471,14 +489,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode("ascii")
         serial_hex = format(cert.serial_number, "x")
         capability = secrets.token_urlsafe(32)
-        deadline = time.monotonic() + DOWNLOAD_TTL_SECONDS
+        deadline = time.monotonic() + settings.download_ttl_seconds
         # Serialize issue result and secret ZIP allocation. Never store private key in DB.
         with app.state.downloads_lock:
             expired_tokens = [t for t, (expires, _, _) in app.state.downloads.items()
                               if expires <= time.monotonic()]
             for t in expired_tokens:
                 del app.state.downloads[t]
-            if len(app.state.downloads) >= MAX_PENDING_DOWNLOADS:
+            if len(app.state.downloads) >= settings.max_pending_downloads:
                 raise HTTPException(503, "Private-key download capacity reached; retry later")
             with connect(settings.db_path) as con:
                 cur = con.execute(
@@ -494,7 +512,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "domain": row["domain"],
             "serial_hex": serial_hex,
             "expires_at": cert.not_valid_after_utc.isoformat(),
-            "download_expires_in_seconds": DOWNLOAD_TTL_SECONDS,
+            "download_expires_in_seconds": settings.download_ttl_seconds,
             "download_url": "/api/downloads/" + capability,
             "certificate_url": prefix + "/leaf.crt",
             "fullchain_url": prefix + "/fullchain.pem",
