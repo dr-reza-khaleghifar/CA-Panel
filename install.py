@@ -357,17 +357,6 @@ def main() -> int:
         return 0
 
     maybe_check_issuer_password(online, filenames[0], secret)
-    if args.private_https:
-        # Fail before launching Docker if the private TLS leaf/key was not imported.
-        from scripts.setup_private_tls import host_path, safe_domain
-        tls_dir = host_path(values.get("PANEL_TLS_HOST_DIR", "./secrets/tls"))
-        safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
-        if not tls_dir.is_dir() or tls_dir.is_symlink() or any(
-            not (tls_dir / name).is_file() or (tls_dir / name).is_symlink()
-            for name in ("fullchain.pem", "privkey.pem")
-        ):
-            fail("Private TLS files missing. Import your one-time ZIP first with: "
-                 "python3 scripts/setup_private_tls.py --zip /path/to/domain-certificates.zip")
     if content != original:
         write_env(content)
         info(".env saved with private permissions (0600); existing values preserved.")
@@ -388,6 +377,20 @@ def main() -> int:
     if data.exists() and (data.is_symlink() or not data.is_dir()):
         fail("DATA_HOST_DIR is not a regular directory")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Only a local operator with access to .env and the encrypted online
+    # Issuing CA can bootstrap/renew the configured PANEL_DOMAIN. Public
+    # /api/requests still require DNS ownership proof.
+    panel_tls_action = "unchanged"
+    if args.private_https:
+        check_prerequisites(docker=False, crypto=True)
+        from scripts.issue_panel_tls import ensure_panel_tls
+        try:
+            panel_tls_action = ensure_panel_tls(ROOT)
+        except (OSError, ValueError) as exc:
+            fail("Could not provision private HTTPS certificate for PANEL_DOMAIN: "
+                 + str(exc))
+        info("Local panel HTTPS certificate: " + panel_tls_action
+             + " (no DNS TXT required for local installation).")
     if not args.no_start:
         check_prerequisites(docker=True, crypto=False)
         info("Building and launching CA-Panel API with Docker Compose...")
@@ -400,6 +403,10 @@ def main() -> int:
             fail("Docker launch requested but /healthz is not healthy. "
                  "Run: docker compose ps && docker compose logs --tail=80 api")
         if args.private_https:
+            # Compose can retain a running Caddy when only files change.
+            # Reload the existing daemon so renewed cert and key take effect.
+            if panel_tls_action != "unchanged":
+                run("docker", "compose", "--profile", "private-tls", "restart", "caddy-private")
             from scripts.setup_private_tls import safe_domain
             domain = safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
             root = online / filenames[2]
