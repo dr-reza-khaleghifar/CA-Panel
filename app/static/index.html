@@ -11,11 +11,12 @@
   <link rel="stylesheet" href="/static/v3.css?v=5">
   <link rel="stylesheet" href="/static/v4.css?v=5">
   <link rel="stylesheet" href="/static/v5.css?v=5">
-  <link rel="stylesheet" href="/static/v6.css?v=1">
-  <script src="/static/app.js?v=7" defer></script>
-  <script src="/static/navigation.js?v=6" defer></script>
+  <link rel="stylesheet" href="/static/v6.css?v=2">
+  <script src="/static/app.js?v=8" defer></script>
+  <script src="/static/navigation.js?v=7" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#issue-workspace">رفتن به فرم صدور گواهی</a>
   <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-3.7 8-10V5l-8-3-8 3v7c0 6.3 8 10 8 10Z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
     <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18"/></symbol>
@@ -83,13 +84,79 @@
         <section class="overview" id="overview" tabindex="-1" aria-labelledby="overview-title">
           <div class="overview-bar">
             <div><span class="section-kicker">CONTROL CENTER / نمای کلی</span><h2 id="overview-title">مرکز عملیات گواهی دیجیتال</h2><p>هویت مرجع صادرکننده، اتصال سرویس و فرایند صدور، در یک نگاه</p></div>
-            <a class="btn btn-outline overview-action" href="#issue-workspace"><svg class="icon"><use href="#i-key"/></svg>درخواست گواهی</a>
+            <div class="overview-actions"><button class="btn btn-quiet" type="button" id="refresh-status" aria-label="بررسی مجدد وضعیت سرویس"><svg class="icon"><use href="#i-rotate"/></svg><span>بررسی مجدد</span></button><a class="btn btn-outline overview-action" href="#issue-workspace"><svg class="icon"><use href="#i-key"/></svg>درخواست گواهی</a></div>
           </div>
           <div class="overview-grid" aria-label="وضعیت سرویس‌های عمومی">
             <article class="overview-stat"><span class="overview-stat-icon"><svg class="icon"><use href="#i-shield"/></svg></span><div class="overview-stat-body"><span>سرویس صدور گواهی</span><strong id="service-status" aria-live="polite">در حال بررسی…</strong><small>بر اساس پاسخ واقعی API</small></div><span id="service-status-dot" class="stat-signal pending" aria-hidden="true"></span></article>
             <article class="overview-stat"><span class="overview-stat-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div class="overview-stat-body"><span>اتصال به پنل</span><strong id="transport-status">در حال بررسی…</strong><small id="transport-detail">اعتبار اتصال مرورگر</small></div></article>
             <article class="overview-stat"><span class="overview-stat-icon"><svg class="icon"><use href="#i-clock"/></svg></span><div class="overview-stat-body"><span>اعتبار پیش‌فرض گواهی</span><strong><b id="dashboard-validity-days">—</b> روز</strong><small>بر اساس سیاست CA</small></div></article>
           </div>
+
+        </section>
+
+        <section class="workspace-card" id="issue-workspace" tabindex="-1" aria-label="فرآیند صدور گواهی">
+          <div class="workspace-heading">
+            <div><div class="section-kicker">CERTIFICATE ISSUANCE <span aria-hidden="true">/</span> درخواست جدید</div><h2>صدور گواهی دیجیتال</h2><p>از ثبت دامنه تا دریافت امن گواهی، در سه گام مشخص و قابل پیگیری.</p></div>
+            <div class="card-head-badge"><svg class="icon"><use href="#i-shield"/></svg><span dir="ltr">PRIVATE PKI</span></div>
+          </div>
+
+          <div class="step-overview"><span id="stage-context">گام ۱ از ۳ · ثبت دامنه</span><span id="stage-progress-label">۳۳٪</span></div>
+          <div id="stage-progress" class="step-progress-track" role="progressbar" aria-label="پیشرفت فرایند صدور گواهی" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33"><span id="stage-progress-fill"></span></div>
+          <ol class="steps" aria-label="پیشرفت فرآیند صدور">
+            <li class="step selected" id="step-1" aria-current="step"><span class="step-number">۱</span><span class="step-text"><strong>اطلاعات دامنه</strong><small>ثبت درخواست</small></span></li>
+            <li class="step" id="step-2"><span class="step-number">۲</span><span class="step-text"><strong>تأیید مالکیت</strong><small>رکورد DNS</small></span></li>
+            <li class="step" id="step-3"><span class="step-number">۳</span><span class="step-text"><strong>دریافت گواهی</strong><small>دانلود فایل‌ها</small></span></li>
+          </ol>
+          <div role="alert" aria-atomic="true" id="message" class="message hidden"></div>
+
+          <section class="form-stage" id="domain-panel" aria-labelledby="domain-heading">
+            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div><div class="step-caption">گام اول از سه گام</div><h3 id="domain-heading" tabindex="-1">دامنه مورد نظر را وارد کنید</h3><p>گواهی برای دامنه‌ای که ثبت می‌کنید صادر خواهد شد.</p></div></div>
+            <form id="domain-form">
+              <label class="field-label" for="domain">آدرس دامنه <span class="required-mark">*</span></label>
+              <div class="domain-field"><svg class="icon"><use href="#i-globe"/></svg><input id="domain" name="domain" type="text" required spellcheck="false" dir="ltr" inputmode="url" autocomplete="url" placeholder="example.com" maxlength="2048" autocapitalize="none" enterkeyhint="go" aria-describedby="domain-help domain-preview"></div>
+              <div class="field-helper" id="domain-help"><svg class="icon"><use href="#i-info"/></svg><span>دامنه کامل یا آدرس https:// پذیرفته می‌شود. IP و Wildcard پشتیبانی نمی‌شوند.</span></div>
+              <div class="domain-preview" id="domain-preview" aria-live="off"><svg class="icon"><use href="#i-globe"/></svg><span id="domain-preview-label">دامنه‌ای که برای صدور وارد می‌کنید اینجا نمایش داده می‌شود.</span></div>
+              <div class="form-actions"><button class="btn btn-primary" type="submit" id="domain-submit"><span>شروع صدور گواهی</span><svg class="icon"><use href="#i-arrow"/></svg></button><span class="step-meta"><svg class="icon"><use href="#i-shield"/></svg> مالکیت دامنه قبل از صدور بررسی می‌شود</span></div>
+            </form>
+          </section>
+
+          <section class="form-stage hidden" id="dns-panel" aria-labelledby="dns-heading">
+            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div><div class="step-caption">گام دوم از سه گام</div><h3 id="dns-heading" tabindex="-1">مالکیت دامنه را تأیید کنید</h3><p>یک رکورد TXT با اطلاعات زیر در DNS دامنه ثبت کنید.</p></div></div>
+            <div class="domain-banner"><svg class="icon"><use href="#i-shield"/></svg><span>دامنه در حال تأیید</span><strong id="request-domain" dir="ltr">—</strong></div>
+            <div class="dns-instruction"><div class="mini-step">۱</div><p>به پنل مدیریت DNS دامنه بروید و یک رکورد جدید با نوع <strong>TXT</strong> بسازید.</p></div>
+            <div class="dns-record"><div class="record-header"><span>DNS RECORD <i class="record-led" aria-hidden="true"></i></span><span class="record-type">TXT</span></div>
+              <div class="record-row"><div class="record-label">نام رکورد (Host)</div><div class="record-value"><code id="dns-name" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-name" aria-label="کپی نام رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
+              <div class="record-row"><div class="record-label">مقدار رکورد (Value)</div><div class="record-value"><code id="dns-value" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-value" aria-label="کپی مقدار رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
+            </div>
+            <div class="dns-instruction"><div class="mini-step">۲</div><p>بعد از ذخیره رکورد و انتشار DNS، گزینه «تأیید DNS و صدور گواهی» را بزنید.</p></div>
+            <div id="dns-guidance" class="dns-feedback" role="status" aria-live="polite"><svg class="icon"><use href="#i-info"/></svg><span>تا زمانی که رکورد TXT در DNS عمومی منتشر نشده است، تأیید موفق نخواهد بود.</span></div>
+            <div class="inline-note"><svg class="icon"><use href="#i-clock"/></svg><span>مهلت درخواست: <strong id="challenge-expiry">—</strong>. در بعضی سرویس‌ها انتشار DNS چند دقیقه زمان می‌برد.</span></div>
+            <div class="form-actions"><button id="verify-button" class="btn btn-primary" type="button"><span>تأیید DNS و صدور گواهی</span><svg class="icon"><use href="#i-arrow"/></svg></button><button type="button" class="btn btn-quiet" data-reset>شروع دوباره</button></div>
+            <details class="help-details"><summary>رکورد را اضافه کرده‌ام، اما تأیید نمی‌شود</summary><p>مطمئن شوید نام کامل رکورد صحیح است (برای www ممکن است زیر‌دامنه جداگانه نیاز باشد)، مقدار TXT دقیقاً برابر با توکن همین درخواست باشد و رکورد از DNS عمومی دیده شود. در صورت انقضای درخواست، یک درخواست جدید ایجاد کنید.</p></details>
+          </section>
+
+          <section class="form-stage hidden" id="issue-panel" aria-labelledby="issue-heading">
+            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-key"/></svg></span><div><div class="step-caption">گام سوم از سه گام</div><h3 id="issue-heading" tabindex="-1">در حال آماده‌سازی گواهی</h3><p>مالکیت دامنه تأیید شد. امضا و تولید فایل‌ها روی سرور انجام می‌شود.</p></div></div>
+            <div class="pending-card"><span class="pending-spinner" aria-hidden="true"></span><div><strong>ساخت کلید و گواهی</strong><p>اگر مرحله صدور به‌دلیل قطع شبکه متوقف شد، دوباره تلاش کنید. پس از صدور موفق، درخواست قابل تکرار نیست.</p></div></div>
+            <div class="form-actions"><button type="button" id="issue-button" class="btn btn-primary"><svg class="icon"><use href="#i-rotate"/></svg><span>تلاش مجدد برای صدور</span></button><button type="button" class="btn btn-quiet" data-reset>درخواست جدید</button></div>
+          </section>
+
+          <section class="form-stage hidden" id="success-panel" aria-labelledby="success-heading">
+            <div class="success-top"><div class="success-mark"><svg class="icon"><use href="#i-check"/></svg></div><div><div class="step-caption success-caption">صدور موفق</div><h3 id="success-heading" tabindex="-1">گواهی شما آماده است!</h3><p>فایل‌های دامنه <strong id="issued-domain" dir="ltr">—</strong> را از این بخش دریافت کنید.</p></div></div>
+            <div class="issued-summary"><div><span>وضعیت</span><strong class="summary-verified"><svg class="icon"><use href="#i-check"/></svg> صادرشده</strong></div><div><span>مدت اعتبار</span><strong id="certificate-validity">۳۰ روز (حداکثر)</strong></div><div><span>انقضای گواهی</span><strong id="certificate-expiry">—</strong></div></div>
+            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge"><svg class="icon"><use href="#i-lock"/></svg> محرمانه · فقط یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا <span id="zip-max-age">حداکثر ۱۰ دقیقه</span> باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span><span id="download-status" class="download-status" role="status">قبل از ترک صفحه، فایل ZIP محرمانه را دریافت و نگهداری کنید.</span></div><a id="download-button" href="#" class="btn btn-primary" download aria-describedby="download-expiry download-status"><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
+            <div class="files-heading"><h4>فایل‌های عمومی گواهی</h4><p>این فایل‌ها کلید خصوصی ندارند و جداگانه قابل دریافت‌اند.</p></div>
+            <div class="files-grid">
+              <a id="leaf-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>گواهی دامنه</strong><small>certificate.crt</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
+              <a id="fullchain-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>زنجیره گواهی</strong><small>fullchain.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
+              <a id="issuer-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-shield"/></svg></span><span class="file-desc"><strong>گواهی صادرکننده</strong><small>issuing-ca.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
+              <a id="root-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-shield"/></svg></span><span class="file-desc"><strong>گواهی ریشه CA</strong><small>root-ca.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
+            </div>
+            <div class="safety-hint"><svg class="icon"><use href="#i-alert"/></svg><p>فایل ZIP بدون رمز است و شامل کلید خصوصی می‌شود. آن را در فضای امن نگه دارید و لینک دانلود را به اشتراک نگذارید. در صورت از دست رفتن کلید، باید درخواست تازه ایجاد کنید.</p></div>
+            <div class="form-actions final-actions"><button type="button" class="btn btn-outline" data-reset><svg class="icon"><use href="#i-rotate"/></svg><span>صدور گواهی جدید</span></button></div>
+          </section>
+        </section>
+
           <section class="hero" aria-labelledby="hero-heading">
             <div class="hero-copy">
               <div class="eyebrow"><span class="eyebrow-dot"></span> زیرساخت اعتماد سازمانی</div>
@@ -108,66 +175,6 @@
               </div>
             </div>
           </section>
-        </section>
-
-        <section class="workspace-card" id="issue-workspace" tabindex="-1" aria-label="فرآیند صدور گواهی">
-          <div class="workspace-heading">
-            <div><div class="section-kicker">CERTIFICATE ISSUANCE <span aria-hidden="true">/</span> درخواست جدید</div><h2>صدور گواهی دیجیتال</h2><p>از ثبت دامنه تا دریافت امن گواهی، در سه گام مشخص و قابل پیگیری.</p></div>
-            <div class="card-head-badge"><svg class="icon"><use href="#i-shield"/></svg><span dir="ltr">PRIVATE PKI</span></div>
-          </div>
-
-          <ol class="steps" aria-label="پیشرفت فرآیند صدور">
-            <li class="step selected" id="step-1" aria-current="step"><span class="step-number">۱</span><span class="step-text"><strong>اطلاعات دامنه</strong><small>ثبت درخواست</small></span></li>
-            <li class="step" id="step-2"><span class="step-number">۲</span><span class="step-text"><strong>تأیید مالکیت</strong><small>رکورد DNS</small></span></li>
-            <li class="step" id="step-3"><span class="step-number">۳</span><span class="step-text"><strong>دریافت گواهی</strong><small>دانلود فایل‌ها</small></span></li>
-          </ol>
-          <div role="status" aria-live="polite" aria-atomic="true" id="message" class="message hidden"></div>
-
-          <section class="form-stage" id="domain-panel" aria-labelledby="domain-heading">
-            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div><div class="step-caption">گام اول از سه گام</div><h3 id="domain-heading">دامنه مورد نظر را وارد کنید</h3><p>گواهی برای دامنه‌ای که ثبت می‌کنید صادر خواهد شد.</p></div></div>
-            <form id="domain-form">
-              <label class="field-label" for="domain">آدرس دامنه <span class="required-mark">*</span></label>
-              <div class="domain-field"><svg class="icon"><use href="#i-globe"/></svg><input id="domain" name="domain" type="text" required spellcheck="false" dir="ltr" inputmode="url" autocomplete="url" placeholder="example.com" maxlength="2048"></div>
-              <div class="field-helper"><svg class="icon"><use href="#i-info"/></svg><span>دامنه کامل یا آدرس https:// پذیرفته می‌شود. IP و Wildcard پشتیبانی نمی‌شوند.</span></div>
-              <div class="form-actions"><button class="btn btn-primary" type="submit" id="domain-submit"><span>شروع صدور گواهی</span><svg class="icon"><use href="#i-arrow"/></svg></button><span class="step-meta"><svg class="icon"><use href="#i-shield"/></svg> مالکیت دامنه قبل از صدور بررسی می‌شود</span></div>
-            </form>
-          </section>
-
-          <section class="form-stage hidden" id="dns-panel" aria-labelledby="dns-heading">
-            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-globe"/></svg></span><div><div class="step-caption">گام دوم از سه گام</div><h3 id="dns-heading">مالکیت دامنه را تأیید کنید</h3><p>یک رکورد TXT با اطلاعات زیر در DNS دامنه ثبت کنید.</p></div></div>
-            <div class="domain-banner"><svg class="icon"><use href="#i-shield"/></svg><span>دامنه در حال تأیید</span><strong id="request-domain" dir="ltr">—</strong></div>
-            <div class="dns-instruction"><div class="mini-step">۱</div><p>به پنل مدیریت DNS دامنه بروید و یک رکورد جدید با نوع <strong>TXT</strong> بسازید.</p></div>
-            <div class="dns-record"><div class="record-header"><span>DNS RECORD <i class="record-led" aria-hidden="true"></i></span><span class="record-type">TXT</span></div>
-              <div class="record-row"><div class="record-label">نام رکورد (Host)</div><div class="record-value"><code id="dns-name" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-name" aria-label="کپی نام رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
-              <div class="record-row"><div class="record-label">مقدار رکورد (Value)</div><div class="record-value"><code id="dns-value" dir="ltr"></code><button type="button" class="copy-button" data-copy="dns-value" aria-label="کپی مقدار رکورد"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div>
-            </div>
-            <div class="dns-instruction"><div class="mini-step">۲</div><p>بعد از ذخیره رکورد و انتشار DNS، گزینه «تأیید و صدور خودکار» را بزنید.</p></div>
-            <div class="inline-note"><svg class="icon"><use href="#i-clock"/></svg><span>مهلت درخواست: <strong id="challenge-expiry">—</strong>. در بعضی سرویس‌ها انتشار DNS چند دقیقه زمان می‌برد.</span></div>
-            <div class="form-actions"><button id="verify-button" class="btn btn-primary" type="button"><span>تأیید DNS و صدور گواهی</span><svg class="icon"><use href="#i-arrow"/></svg></button><button type="button" class="btn btn-quiet" data-reset>شروع دوباره</button></div>
-            <details class="help-details"><summary>رکورد را اضافه کرده‌ام، اما تأیید نمی‌شود</summary><p>مطمئن شوید نام کامل رکورد صحیح است (برای www ممکن است زیر‌دامنه جداگانه نیاز باشد)، مقدار TXT دقیقاً برابر با توکن همین درخواست باشد و رکورد از DNS عمومی دیده شود. در صورت انقضای درخواست، یک درخواست جدید ایجاد کنید.</p></details>
-          </section>
-
-          <section class="form-stage hidden" id="issue-panel" aria-labelledby="issue-heading">
-            <div class="stage-title"><span class="stage-icon"><svg class="icon"><use href="#i-key"/></svg></span><div><div class="step-caption">گام سوم از سه گام</div><h3 id="issue-heading">در حال آماده‌سازی گواهی</h3><p>مالکیت دامنه تأیید شد. امضا و تولید فایل‌ها روی سرور انجام می‌شود.</p></div></div>
-            <div class="pending-card"><span class="pending-spinner" aria-hidden="true"></span><div><strong>ساخت کلید و گواهی</strong><p>اگر مرحله صدور به‌دلیل قطع شبکه متوقف شد، دوباره تلاش کنید. پس از صدور موفق، درخواست قابل تکرار نیست.</p></div></div>
-            <div class="form-actions"><button type="button" id="issue-button" class="btn btn-primary"><svg class="icon"><use href="#i-rotate"/></svg><span>تلاش مجدد برای صدور</span></button><button type="button" class="btn btn-quiet" data-reset>درخواست جدید</button></div>
-          </section>
-
-          <section class="form-stage hidden" id="success-panel" aria-labelledby="success-heading">
-            <div class="success-top"><div class="success-mark"><svg class="icon"><use href="#i-check"/></svg></div><div><div class="step-caption success-caption">صدور موفق</div><h3 id="success-heading">گواهی شما آماده است!</h3><p>فایل‌های دامنه <strong id="issued-domain" dir="ltr">—</strong> را از این بخش دریافت کنید.</p></div></div>
-            <div class="issued-summary"><div><span>وضعیت</span><strong class="summary-verified"><svg class="icon"><use href="#i-check"/></svg> صادرشده</strong></div><div><span>مدت اعتبار</span><strong id="certificate-validity">۳۰ روز (حداکثر)</strong></div><div><span>انقضای گواهی</span><strong id="certificate-expiry">—</strong></div></div>
-            <div class="private-download"><div class="private-download-icon"><svg class="icon"><use href="#i-lock"/></svg></div><div class="private-download-copy"><span class="private-badge"><svg class="icon"><use href="#i-lock"/></svg> محرمانه · فقط یک بار دانلود</span><h4>بسته کامل گواهی و کلید خصوصی</h4><p>شامل فایل <code dir="ltr">.key</code> و همه گواهی‌ها در یک ZIP. لینک پس از نخستین دریافت یا <span id="zip-max-age">حداکثر ۱۰ دقیقه</span> باطل می‌شود.</p><span class="download-time" id="download-expiry" aria-live="off"></span></div><a id="download-button" href="#" class="btn btn-primary" download><svg class="icon"><use href="#i-download"/></svg><span>دانلود ZIP</span></a></div>
-            <div class="files-heading"><h4>فایل‌های گواهی</h4><p>این فایل‌ها کلید خصوصی ندارند و جداگانه قابل دریافت‌اند.</p></div>
-            <div class="files-grid">
-              <a id="leaf-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>گواهی دامنه</strong><small>certificate.crt</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
-              <a id="fullchain-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-file"/></svg></span><span class="file-desc"><strong>زنجیره گواهی</strong><small>fullchain.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
-              <a id="issuer-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-shield"/></svg></span><span class="file-desc"><strong>گواهی صادرکننده</strong><small>issuing-ca.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
-              <a id="root-link" class="file-card" href="#" download><span class="file-icon"><svg class="icon"><use href="#i-shield"/></svg></span><span class="file-desc"><strong>گواهی ریشه CA</strong><small>root-ca.pem</small></span><svg class="icon file-download"><use href="#i-download"/></svg></a>
-            </div>
-            <div class="safety-hint"><svg class="icon"><use href="#i-alert"/></svg><p>فایل ZIP بدون رمز است و شامل کلید خصوصی می‌شود. آن را در فضای امن نگه دارید و لینک دانلود را به اشتراک نگذارید. در صورت از دست رفتن کلید، باید درخواست تازه ایجاد کنید.</p></div>
-            <div class="form-actions final-actions"><button type="button" class="btn btn-outline" data-reset><svg class="icon"><use href="#i-rotate"/></svg><span>صدور گواهی جدید</span></button></div>
-          </section>
-        </section>
 
         <section id="how-it-works" class="below-section" tabindex="-1" aria-labelledby="how-heading"><div class="section-topline"><span class="section-kicker">ساده و مرحله‌به‌مرحله</span><h2 id="how-heading">چطور کار می‌کند؟</h2></div><div class="info-grid">
           <article class="info-card"><span class="info-icon lavender"><svg class="icon"><use href="#i-globe"/></svg></span><div><strong>ثبت دامنه</strong><p>آدرس وب‌سایت را وارد کنید تا درخواست اختصاصی شما ساخته شود.</p></div></article>
@@ -190,6 +197,7 @@
 
         <section id="security" class="trust-section" tabindex="-1" aria-labelledby="security-heading"><span class="trust-symbol"><svg class="icon"><use href="#i-shield"/></svg></span><div><h2 id="security-heading">شفافیت درباره امنیت و اعتماد</h2><p>گواهی‌های این سامانه با <strong>CA خصوصی شما</strong> امضا می‌شوند و به‌طور پیش‌فرض مورد اعتماد مرورگرهای عمومی نیستند. برای استفاده عمومی از پنل حتماً HTTPS فعال باشد. کلید خصوصی موقتاً در حافظه سرور تولید می‌شود و در دیتابیس نگهداری نمی‌شود.</p>
           <div class="ca-info" aria-label="مشخصات عمومی گواهی‌های CA"><div><span>نام CA صادرکننده (از گواهی واقعی)</span><strong id="ca-issuer-name" dir="auto">—</strong></div><div><span>نام Root CA (از گواهی واقعی)</span><strong id="ca-root-name" dir="auto">—</strong></div><div class="ca-info-fingerprint"><span>اثر انگشت SHA-256 ریشه</span><div class="fingerprint-row"><code id="ca-root-fingerprint" dir="ltr">—</code><button type="button" class="copy-button" data-copy="ca-root-fingerprint" aria-label="کپی اثر انگشت ریشه"><svg class="icon"><use href="#i-copy"/></svg><span>کپی</span></button></div></div></div>
+            <div class="trust-actions"><a class="btn btn-outline" href="/api/ca.pem" download="iran-ca-center-root.pem"><svg class="icon"><use href="#i-download"/></svg>دریافت گواهی عمومی Root</a><span>پیش از اعتمادکردن به این گواهی، اثر انگشت SHA-256 آن را از مسیر مستقل تأیید کنید.</span></div>
           </div><a href="https://github.com/dr-reza-khaleghifar/CA-Panel/blob/main/docs/OPERATIONS.md" target="_blank" rel="noopener noreferrer">راهنمای امنیت <svg class="icon"><use href="#i-arrow"/></svg></a></section>
         <footer class="footer"><span>© گواهی دیجیتال ایران <small dir="ltr">Iran CA Center</small></span><span>زیرساخت سازمانی صدور و اعتبارسنجی گواهی دیجیتال</span></footer>
       </main>
