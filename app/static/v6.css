@@ -326,3 +326,87 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{
   html{scroll-behavior:auto}
   .toast,.hero,.overview-stat{animation:none}
 }
+
+/* Iran CA Center — UX refinement: task-first, keyboard focus, meaningful states */
+.skip-link{
+  position:fixed;top:12px;right:18px;z-index:200;transform:translateY(-160%);
+  background:#9dc8ff;color:#0a1728;border:2px solid #eef7ff;
+  border-radius:10px;padding:10px 17px;font-weight:850;box-shadow:0 12px 30px #0009
+}
+.skip-link:focus-visible{transform:translateY(0)}
+.overview{margin-bottom:20px}
+.overview-bar{margin-bottom:19px}
+.overview-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.overview-actions .btn{min-height:42px;padding:8px 13px}
+.overview-actions .btn-quiet{background:#14253a;border:1px solid #304b69;color:#b7cced}
+.overview-actions .btn-quiet:hover:not(:disabled){background:#234264;color:#fff}
+.overview-actions .btn:disabled{opacity:.65}
+.overview-grid{margin-bottom:6px}
+.overview-stat{box-shadow:0 8px 22px #03081525}
+.workspace-card{margin-top:0;margin-bottom:26px}
+.hero{margin:0 0 24px;min-height:315px;padding-block:35px;scroll-margin-top:105px}
+.hero .trust-chain-graphic{max-width:325px}
+.hero .hero-art{min-height:256px}
+.step-overview{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  font-size:11px;font-weight:800;color:#bfd8fa;margin:-8px 1px 9px}
+#stage-progress-label{color:#8ec4ff;font:800 12px ui-sans-serif,Tahoma,sans-serif;white-space:nowrap}
+.step-progress-track{height:5px;width:100%;background:#1d334e;border-radius:999px;
+  overflow:hidden;margin-bottom:15px;box-shadow:inset 0 1px 2px #0008}
+#stage-progress-fill{display:block;width:33%;height:100%;
+  border-radius:inherit;background:linear-gradient(90deg,#5bdbbe,#85bfff);
+  transition:width .35s cubic-bezier(.2,.65,.3,1)}
+.step{min-height:65px}
+.stage-title h3:focus{outline:none}
+.stage-title h3:focus-visible,.success-top h3:focus-visible{
+  outline:2px solid #84baff;outline-offset:5px;border-radius:3px
+}
+.domain-preview{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:11px 13px;
+  background:#101e31;border:1px solid #263f5b;border-radius:10px;
+  color:#90a9c5;font-size:11px;overflow-wrap:anywhere}
+.domain-preview.has-value{background:#142a43;border-color:#385b80;color:#bbd7fc}
+.domain-preview .icon{width:16px;height:16px;margin-top:3px;color:#8ebaff;flex:none}
+.domain-preview span{min-width:0;direction:auto;unicode-bidi:plaintext}
+.dns-feedback{display:flex;gap:10px;align-items:flex-start;margin:13px 0 5px;
+  background:#162e43;border:1px solid #355778;border-radius:10px;
+  padding:12px 14px;color:#c1d7ef;font-size:11px;line-height:2}
+.dns-feedback.needs-attention{background:#372d27;border-color:#6a5545;color:#ffdbb0}
+.dns-feedback .icon{height:18px;width:18px;flex:none;margin-top:3px}
+.btn.is-loading{cursor:progress;filter:saturate(.8)}
+.btn.is-loading:before{content:"";width:13px;height:13px;flex:none;border-radius:50%;
+  border:2px solid currentColor;border-left-color:transparent;animation:spin 750ms linear infinite}
+.download-status{display:block;margin-top:6px;color:#c5e2d9;font-size:10px;line-height:1.95}
+.private-download.expiring{border-color:#ffbd7a!important;
+  background:linear-gradient(115deg,#413425,#1e2d3b)!important}
+.private-download.expiring .download-time,.private-download.expiring .download-status{color:#ffe0aa}
+.private-download.expired .download-status{color:#ffb5c0}
+.trust-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px}
+.trust-actions .btn{flex:none;white-space:normal;font-size:11px;padding-inline:12px}
+.trust-actions>span{font-size:10.5px;line-height:2;color:#b0c3dd;flex:1;min-width:185px}
+.faq-item summary:focus-visible{outline-offset:0}
+@media(max-width:980px){
+  .overview{scroll-margin-top:86px}
+  .workspace-card,.below-section,.faq-section,.trust-section{scroll-margin-top:85px}
+}
+@media(max-width:730px){
+  .overview-bar{gap:12px}
+  .overview-actions{flex-wrap:nowrap}
+  .overview-actions .btn{font-size:10px;padding:8px 11px}
+  .hero{min-height:0;margin:10px 0 20px}
+  .step-overview{margin-top:0}
+}
+@media(max-width:480px){
+  .overview-actions{width:100%;margin-top:9px}
+  .overview-actions>*{flex:1;justify-content:center}
+  .overview-bar .overview-action{margin-top:0}
+  .step-overview{gap:5px;font-size:10px}
+  .steps .step{min-height:62px}
+  .domain-preview{font-size:10px;padding:10px}
+  .dns-feedback{font-size:10px}
+  .trust-actions{display:block}
+  .trust-actions .btn{width:100%;margin-bottom:10px}
+  .private-download .btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  #stage-progress-fill{transition:none}
+  .btn.is-loading:before{animation:none}
+}
