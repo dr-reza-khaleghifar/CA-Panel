@@ -171,6 +171,20 @@ curl http://127.0.0.1:8080/api/system
 
 سلامت API باید `{"status":"ok"}` باشد و `/api/system` نام‌های واقعی Root/Issuing جدید و fingerprint عمومی Root را نمایش دهد. اگر پنل هنوز گواهی HTTPS ندارد، پورت 8080 عمداً فقط روی localhost است.
 
+## ۷. روش جدید: صدور خودکار گواهی پنل بدون DNS
+
+برای **خود پنل ca1.iravand.ir** دیگر نیازی نیست رکورد TXT بسازید یا به صفحه صدور بروید. بعد از کامل‌شدن مرحله ۶ و انتقال Root به محل آفلاین، مستقیماً اجرا کنید:
+
+```bash
+cd ~/CA-Panel
+git pull
+bash install.sh --private-https
+curl --noproxy '*' --cacert secrets/online/root-cert.pem \
+  --resolve ca1.iravand.ir:443:127.0.0.1 https://ca1.iravand.ir/healthz
+```
+
+از آنجا که در این راهنما نام فایل Root پیش‌فرض ممکن است `pardis-root-cert.pem` یا `root-cert.pem` باشد، در `--cacert` همان نام واقعی فایل موجود را استفاده کنید. Caddy پورت ۴۴۳ را باز می‌کند. **صدور گواهی برای کاربران عادی از طریق وب هنوز نیازمند رکورد TXT است**. مراحل دستی زیر فقط برای زمانی هستند که شخصاً صدور ZIP را ترجیح می‌دهید.
+
 ## ۷. اتصال امن به پنل از رایانه مدیریتی و صدور گواهی HTTPS
 
 روی رایانه مدیریتی یک SSH Tunnel باز کنید:

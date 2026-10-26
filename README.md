@@ -172,9 +172,24 @@ curl http://127.0.0.1:8080/api/system
 برای **ساخت اولیه یک CA جدید** می‌توانید علاوه بر مسیرها و نام فایل‌ها، `CA_ROOT_CN` و `CA_ISSUER_CN` (نام واقعی داخل گواهی)، `CA_ROOT_ORGANIZATION` و `CA_ISSUER_ORGANIZATION`، مدت اعتبار `CA_ROOT_VALIDITY_DAYS` و `CA_ISSUER_VALIDITY_DAYS` و اندازه کلید `CA_ROOT_KEY_BITS` و `CA_ISSUER_KEY_BITS` را از `.env` تعیین کنید. همچنین `CA_ROOT_KEY_FILE` نام کلید آفلاین Root را مشخص می‌کند. اسکریپت‌های `bash install.sh --init-ca` و `python scripts/init_ca.py --env .env` این مقادیر را می‌خوانند. **تغییر این پارامترها بعد از ساخت CA، گواهی‌های قبلی را تغییر نمی‌دهد و باعث بازتولید کلیدها نمی‌شود.** جزئیات در [راهنمای نصب اولیه](docs/FIRST_RUN.md) و [نمونه env](.env.example) آمده است.
 
 
+## صدور خودکار HTTPS خود پنل بدون DNS TXT
+
+هنگامی که Root و Issuing CA اختصاصی از قبل ساخته شده‌اند، دیگر برای **گواهی HTTPS خود پنل** نیازی به ثبت درخواست در وب‌سایت یا رکورد TXT نیست. روی همان سرور و در پوشه پروژه:
+
+```bash
+git pull
+# اگر Python cryptography هنوز روی میزبان نصب نشده است:
+# python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
+bash install.sh --private-https
+```
+
+نصاب از `PANEL_DOMAIN=ca1.iravand.ir` و **کلید Issuing CA موجود در `secrets/online/`** استفاده می‌کند، یک جفت کلید/گواهی TLS تازه فقط برای همان دامنه تولید می‌کند و Caddy را روی پورت ۴۴۳ فعال می‌کند. فایل‌های TLS در `secrets/tls/` نگهداری می‌شوند؛ Issuing private key وارد کانتینر Caddy نمی‌شود.
+
+اگر گواهی معتبر فعلی بیش از ۷ روز اعتبار داشته باشد، فایل‌ها تغییر نمی‌کنند. با اجرای دوباره همین دستور در ۷ روز پایانی، گواهی تازه جایگزین و Caddy راه‌اندازی مجدد می‌شود. **تمدید زمان‌بندی‌شدهٔ خودکار هنوز وجود ندارد**؛ برای آن لازم است اجرای دوره‌ای امن نصب‌کننده توسط مدیر تنظیم شود. این قابلیت **فقط برای نصاب محلی** است؛ تمام درخواست‌های صدور عمومی در رابط/ API همچنان نیاز به اثبات مالکیت DNS دارند. برای جزئیات [راهنمای HTTPS اختصاصی](docs/PRIVATE_HTTPS.md).
+
 ## HTTPS با گواهی اختصاصی CA سازمان روی پورت ۴۴۳
 
-برای اجرای پنل با گواهی سرور صادرشده از **CA خودتان**، مقدار `PANEL_DOMAIN=ca1.iravand.ir` را در `.env` قرار دهید، فایل ZIP گواهی همین دامنه را از پنل دریافت کنید و سپس:
+برای مسیر **دستی/اختیاری** با ZIP، مقدار `PANEL_DOMAIN=ca1.iravand.ir` را در `.env` قرار دهید، فایل ZIP گواهی همین دامنه را از پنل دریافت کنید و سپس:
 
 ```bash
 python3 scripts/setup_private_tls.py --zip "$HOME/Downloads/ca1.iravand.ir-certificates.zip"
