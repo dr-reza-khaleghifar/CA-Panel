@@ -187,6 +187,11 @@ async function busy(button, callback, text = 'در حال پردازش…') {
     const message = describeError(error, kind);
     notify(message);
     if (kind === 'dns') setDnsGuidance(message, true);
+    if (stage === 3) {
+      $('pending-card')?.classList.add('is-failed');
+      setLabelSafe('issue-heading', 'صدور گواهی کامل نشد');
+      setLabelSafe('issue-pending-status', 'پاسخی که موفقیت صدور را تأیید کند دریافت نشد. پیام خطا را بررسی و در صورت امکان دوباره تلاش کنید.');
+    }
   } finally {
     button.disabled = false;
     button.classList.remove('is-loading');
@@ -216,6 +221,9 @@ function bindLinks(data) {
 }
 async function issueAutomatically() {
   if (!currentRequest) throw new Error('ابتدا دامنه را ثبت کنید.');
+  $('pending-card')?.classList.remove('is-failed');
+  setLabelSafe('issue-heading', 'در حال آماده‌سازی گواهی');
+  setLabelSafe('issue-pending-status', 'اگر مرحله صدور به‌دلیل قطع شبکه متوقف شد، دوباره تلاش کنید. پس از صدور موفق، درخواست قابل تکرار نیست.');
   const rid = encodeURIComponent(currentRequest.request_id);
   const data = await api('/api/requests/' + rid + '/issue-server', {method:'POST'});
   bindLinks(data);
