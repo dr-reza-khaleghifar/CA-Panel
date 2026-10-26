@@ -368,6 +368,16 @@ def main() -> int:
         else:
             info("Existing .env preserved; no password or setting overwritten.")
 
+    if not all(values.get(k, "") for k in (
+        "ADMIN_PASSWORD_HASH", "ADMIN_TOTP_SECRET", "ADMIN_SESSION_GENERATION"
+    )):
+        info("SECURITY: administrator MFA is NOT enrolled; sensitive APIs will remain "
+             "LOCKED (HTTP 503). Before using the panel run: "
+             "python3 scripts/setup_admin.py; then re-run the installer.")
+    elif not values.get("CERT_ALLOWED_DOMAINS", ""):
+        info("SECURITY: CERT_ALLOWED_DOMAINS is empty; all certificate issuance "
+             "will be DENIED, even for the admin. Review .env before use.")
+
     offline_dir = ROOT / "secrets" / "offline"
     # Fail closed regardless of the custom CA_ROOT_KEY_FILE basename or a later
     # change to .env: this entire directory must be removed from a live server.
