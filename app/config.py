@@ -30,7 +30,7 @@ class Settings:
     trust_proxy_headers: bool = False
     dns_resolvers: str = ""
 
-    ca_display_name: str = "CA-Panel"
+    ca_display_name: str = "گواهی دیجیتال ایران"
     ca_organization: str = "Private CA"
     ca_issuer_key_file: str = "issuer-key.pem"
     ca_issuer_cert_file: str = "issuer-cert.pem"
@@ -85,7 +85,7 @@ class Settings:
             max_verifications=env_int("MAX_VERIFICATIONS", 10),
             trust_proxy_headers=os.getenv("TRUST_PROXY_HEADERS", "0") == "1",
             dns_resolvers=os.getenv("DNS_RESOLVERS", ""),
-            ca_display_name=os.getenv("CA_DISPLAY_NAME", "CA-Panel"),
+            ca_display_name=os.getenv("CA_DISPLAY_NAME", "گواهی دیجیتال ایران"),
             ca_organization=os.getenv("CA_ORGANIZATION", "Private CA"),
             ca_issuer_key_file=os.getenv("CA_ISSUER_KEY_FILE", "issuer-key.pem"),
             ca_issuer_cert_file=os.getenv("CA_ISSUER_CERT_FILE", "issuer-cert.pem"),
