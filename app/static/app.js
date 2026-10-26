@@ -5,6 +5,7 @@ let issuedLinks = null;
 let deadlineMs = 0;
 let zipDeadlineMs = 0;
 let stage = 1;
+let downloadAttempted = false;
 const $ = id => document.getElementById(id);
 const show = id => $(id).classList.remove('hidden');
 const hide = id => $(id).classList.add('hidden');
@@ -13,6 +14,35 @@ const formatFa = date => new Intl.DateTimeFormat('fa-IR', {dateStyle:'medium', t
 function setLabelSafe(id, value) {
   const element = $(id);
   if (element) element.textContent = value;
+}
+
+function previewDomain() {
+  const entered = $('domain').value.trim();
+  const field = $('domain-preview');
+  if (!entered) {
+    setLabelSafe('domain-preview-label', 'دامنه‌ای که برای صدور وارد می‌کنید اینجا نمایش داده می‌شود.');
+    field.classList.remove('has-value');
+    return;
+  }
+  // Preview only: the API is authoritative for URL normalization and validation.
+  const preview = entered.replace(/^https?:\/\//i, '').split(/[/?#]/, 1)[0].replace(/\.$/, '').toLowerCase();
+  setLabelSafe('domain-preview-label', preview ? 'درخواست گواهی برای: ' + preview : 'لطفاً نام دامنه را کامل وارد کنید.');
+  field.classList.toggle('has-value', Boolean(preview));
+}
+
+function focusStage(headingId) {
+  const heading = $(headingId);
+  if (!heading) return;
+  heading.focus({preventScroll:true});
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('issue-workspace').scrollIntoView({behavior:reduce ? 'auto' : 'smooth', block:'start'});
+}
+
+function setDnsGuidance(text, attention = false) {
+  const region = $('dns-guidance');
+  const label = region?.querySelector('span');
+  if (label) label.textContent = text;
+  region?.classList.toggle('needs-attention', attention);
 }
 
 function displayTransportStatus() {
@@ -86,6 +116,14 @@ function clearNotice() {
 }
 function setStage(value) {
   stage = value;
+  const percent = [0, 33, 67, 100][value];
+  $('stage-progress').setAttribute('aria-valuenow', String(percent));
+  $('stage-progress-fill').style.width = percent + '%';
+  $('stage-progress-label').textContent = percent.toLocaleString('fa-IR') + '٪';
+  $('stage-context').textContent = [
+    '', 'گام ۱ از ۳ · ثبت دامنه', 'گام ۲ از ۳ · اعتبارسنجی DNS',
+    'گام ۳ از ۳ · صدور و دریافت'
+  ][value];
   for (let n = 1; n <= 3; n++) {
     const node = $('step-' + n);
     node.classList.toggle('selected', n === value);
@@ -102,6 +140,8 @@ function showSuccess() {
   setStage(3);
   hide('issue-panel');
   show('success-panel');
+  $('stage-context').textContent = 'گام ۳ از ۳ · صدور موفق';
+  focusStage('success-heading');
 }
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -137,14 +177,20 @@ async function busy(button, callback, text = 'در حال پردازش…') {
   const label = button.querySelector('span') || button;
   const original = label.textContent;
   button.disabled = true;
+  button.classList.add('is-loading');
+  button.setAttribute('aria-busy', 'true');
   label.textContent = text;
   clearNotice();
   try { await callback(); }
   catch (error) {
     const kind = button.id === 'verify-button' ? 'dns' : 'general';
-    notify(describeError(error, kind));
+    const message = describeError(error, kind);
+    notify(message);
+    if (kind === 'dns') setDnsGuidance(message, true);
   } finally {
     button.disabled = false;
+    button.classList.remove('is-loading');
+    button.setAttribute('aria-busy', 'false');
     label.textContent = original;
     updateTimers();
   }
@@ -175,6 +221,8 @@ async function issueAutomatically() {
   bindLinks(data);
   issuedLinks = data;
   zipDeadlineMs = Date.now() + (Number(data.download_expires_in_seconds) || 600) * 1000;
+  downloadAttempted = false;
+  setLabelSafe('download-status', 'این لینک فقط یک‌بار و تا زمان مشخص‌شده قابل دریافت است؛ ZIP را فوراً ذخیره کنید.');
   $('issued-domain').textContent = data.domain;
   $('certificate-expiry').textContent = formatFa(new Date(data.expires_at));
   showSuccess();
@@ -187,7 +235,8 @@ function updateTimers() {
   if (currentRequest && stage === 2) {
     const remaining = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 60000));
     $('challenge-expiry').textContent = remaining ? `${remaining.toLocaleString('fa-IR')} دقیقه باقی مانده` : 'منقضی شده؛ درخواست جدید بسازید';
-    $('verify-button').disabled = !remaining;
+    $('verify-button').disabled = !remaining || $('verify-button').getAttribute('aria-busy') === 'true';
+    if (!remaining) setDnsGuidance('مهلت این درخواست تمام شده است؛ برای ادامه درخواست جدید ثبت کنید.', true);
   }
   if (issuedLinks && stage === 3 && !$('success-panel').classList.contains('hidden')) {
     const remaining = Math.max(0, Math.ceil((zipDeadlineMs - Date.now()) / 60000));
@@ -197,15 +246,22 @@ function updateTimers() {
     $('download-button').setAttribute('aria-disabled', String(expired));
     $('download-button').tabIndex = expired ? -1 : 0;
     $('download-button').closest('.private-download').classList.toggle('expired', expired);
+    const box = $('download-button').closest('.private-download');
+    box.classList.toggle('expiring', remaining > 0 && remaining <= 2);
+    if (expired) setLabelSafe('download-status', 'لینک ZIP منقضی شده است. برای کلید خصوصی جدید باید درخواست دیگری ایجاد کنید.');
+    else if (remaining <= 2 && !downloadAttempted) setLabelSafe('download-status', 'فرصت دانلود بسیار کم است؛ فایل محرمانه ZIP را همین حالا ذخیره کنید.');
   }
 }
 function resetFlow() {
   if (issuedLinks && !window.confirm('لینک خصوصی ZIP پس از ترک این صفحه قابل بازیابی نیست. آیا برای گواهی جدید ادامه می‌دهید؟')) return;
   currentRequest = null;
   issuedLinks = null;
+  downloadAttempted = false;
   deadlineMs = 0;
   zipDeadlineMs = 0;
   $('domain-form').reset();
+  previewDomain();
+  setDnsGuidance('تا زمانی که رکورد TXT در DNS عمومی منتشر نشده است، تأیید موفق نخواهد بود.');
   $('download-button').removeAttribute('href');
   clearNotice();
   setStage(1);
@@ -225,6 +281,8 @@ $('domain-form').addEventListener('submit', event => {
     $('dns-value').textContent = data.dns_value;
     $('request-domain').textContent = data.domain;
     setStage(2);
+    setDnsGuidance('رکورد TXT را در DNS ثبت کنید؛ سپس پس از انتشار، تأیید را انجام دهید.');
+    focusStage('dns-heading');
     updateTimers();
   }, 'در حال ثبت…');
 });
@@ -234,6 +292,7 @@ $('verify-button').addEventListener('click', () => busy($('verify-button'), asyn
   const verified = await api('/api/requests/' + rid + '/verify', {method:'POST'});
   if (!verified.verified) throw new Error('تأیید مالکیت انجام نشد.');
   setStage(3);
+  focusStage('issue-heading');
   await issueAutomatically();
 }, 'در حال تأیید و صدور…'));
 $('issue-button').addEventListener('click', () => busy($('issue-button'), issueAutomatically, 'در حال صدور…'));
@@ -242,22 +301,48 @@ for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
     const value = $(button.dataset.copy)?.textContent || '';
     try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      if (!value || !navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(value);
-      notify('مقدار در کلیپ‌بورد کپی شد.', true);
+      notify('مقدار موردنظر کپی شد.', true);
     } catch {
-      notify('کپی خودکار در این مرورگر در دسترس نیست؛ متن را انتخاب و دستی کپی کنید.');
+      const target = $(button.dataset.copy);
+      if (target && window.getSelection && document.createRange) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      notify('کپی خودکار مجاز نیست؛ متن انتخاب شده است. با Ctrl+C آن را کپی کنید.');
     }
   });
 }
 $('download-button').addEventListener('click', event => {
   if (Date.now() >= zipDeadlineMs || !issuedLinks) { event.preventDefault(); updateTimers(); return; }
-  // Do not fetch/preview a one-time bearer URL. Native navigation handles the download.
-  notify('درخواست دانلود ارسال شد. ZIP را در مکانی امن ذخیره کنید؛ لینک فقط یک بار قابل استفاده است.', true);
+  // Never fetch/preview a one-time bearer URL; leave the native download intact.
+  downloadAttempted = true;
+  setLabelSafe('download-status', 'درخواست دانلود ارسال شد؛ فایل را در پوشه دانلودها بررسی کنید. دریافت موفق از این صفحه قابل تأیید نیست و لینک ممکن است مصرف شده باشد.');
+  notify('درخواست دانلود ZIP ارسال شد؛ ذخیره‌شدن فایل را در مرورگر بررسی کنید.', true);
 });
 
 // Enterprise UI is dark-only; no user-controlled theme or saved preference.
 document.documentElement.setAttribute('data-theme', 'dark');
+$('domain').addEventListener('input', previewDomain);
+previewDomain();
+$('refresh-status').addEventListener('click', async () => {
+  const button = $('refresh-status');
+  if (button.disabled) return;
+  const label = button.querySelector('span');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  label.textContent = 'در حال بررسی…';
+  try { await loadSystemInformation(); }
+  finally {
+    label.textContent = 'بررسی مجدد';
+    button.disabled = false;
+    button.setAttribute('aria-busy', 'false');
+  }
+});
 displayTransportStatus();
 setInterval(updateTimers, 20000);
 setStage(1);
