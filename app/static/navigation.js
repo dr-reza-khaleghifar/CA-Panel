@@ -1,4 +1,4 @@
-/* CA-Panel — accessible, functional navigation without external dependencies. */
+/* Iran CA Center — accessible, responsive navigation with real section state. */
 (function () {
   'use strict';
   const doc = document;
@@ -30,8 +30,12 @@
     for (const item of sections) {
       const active = item.target.id === id;
       item.link.classList.toggle('active', active);
-      if (active) item.link.setAttribute('aria-current', 'location');
-      else item.link.removeAttribute('aria-current');
+      if (active) {
+        item.link.setAttribute('aria-current', 'location');
+        const breadcrumb = doc.getElementById('breadcrumb-current');
+        const label = item.link.querySelector('span:not(.nav-end)');
+        if (breadcrumb && label) breadcrumb.textContent = label.textContent;
+      } else item.link.removeAttribute('aria-current');
     }
   }
 
@@ -69,7 +73,7 @@
     });
   }
   const brand = doc.querySelector('.brand[href="#top"]');
-  if (brand) brand.addEventListener('click', () => {setOpen(false, false);setActive('issue-workspace');});
+  if (brand) brand.addEventListener('click', () => {setOpen(false, false);setActive('overview');});
 
   doc.addEventListener('keydown', event => {
     if (event.key === 'Escape' && opened) setOpen(false, true);
