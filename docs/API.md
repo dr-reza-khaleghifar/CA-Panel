@@ -1,6 +1,22 @@
 # API v1 (JSON)
 
-All examples presume the local-only default (`http://127.0.0.1:8080`). Expose the panel publicly **only behind HTTPS**. Content-Type for writes: `application/json`. Request IDs are unpredictable bearer-like identifiers: **do not share them**.
+All examples presume the CA private-HTTPS deployment. Expose the panel publicly **only behind trusted HTTPS**. Content-Type for writes: `application/json`. Request IDs are unpredictable bearer-like identifiers: **do not share them**.
+
+## Authentication, session and CSRF (mandatory for issuance)
+
+Before issuing, the server operator must complete `python3 scripts/setup_admin.py` and configure the allowed certificate domain suffixes; otherwise protected endpoints fail closed. Browser login is `GET /login`; `POST /api/auth/login` accepts:
+
+```json
+{ "username": "admin", "password": "<your-admin-password>", "code": "123456" }
+```
+
+The response sets a Secure, HttpOnly, SameSite=Strict session cookie and returns `csrf_token`. The session is valid up to eight hours. The browser stores the token in memory only. To inspect it while authenticated, `GET /api/auth/status` returns authenticated status and the CSRF token for that session; it is `Cache-Control: no-store`. All state-changing protected endpoints require the `X-CSRF-Token` header matching the session. `POST /api/auth/logout` requires the same CSRF header and clears the session.
+
+**Every** `/api/requests` route and the one-time private ZIP download require a valid admin session. The public exceptions are `/healthz`, `/api/system`, `/api/ca.pem`, `/api/issuer.pem` and static assets. Authentication does **not** bypass ownership verification. The server also rejects any issuance domain outside `CERT_ALLOWED_DOMAINS` (403), including previously created requests whose domain is no longer allowed.
+
+Use the official web UI for interactive login. For non-browser automation, a human-approved session-cookie + CSRF workflow can be implemented, but do **not** put administrator passwords/MFA secrets in scripts, URLs or CI logs. This is not a public anonymous issuance API. Read [SECURITY_HARDENING.md](SECURITY_HARDENING.md) before integrating.
+
+
 
 ### `GET /healthz`
 Returns `{ "status": "ok" }`. Does not require authentication.

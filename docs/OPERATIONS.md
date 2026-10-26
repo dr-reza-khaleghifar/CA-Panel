@@ -1,5 +1,11 @@
 # Operations & security runbook
 
+## Security hardening and protected issuance (current release)
+
+**The issuance API is no longer anonymous.** Before exposing this version, enroll the operator using `python3 scripts/setup_admin.py` and deploy with `bash install.sh --private-https`. Authenticated requests require TOTP MFA, a server-side opaque session and CSRF protection; any issuance domain must be on the `CERT_ALLOWED_DOMAINS` allowlist and must still pass DNS TXT verification. Admin login is `/login`. No enrollment means issuance is **fail-closed** with HTTP 503.
+
+Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING.md](SECURITY_HARDENING.md). The software currently supports **one admin**, not enterprise RBAC or HSM-based CA security. Restrict network edge and use independent security review before production use.
+
 ## Key management
 
 - NEVER commit `secrets/`, `data/`, `.env`, `.key` or PEM private keys. These are gitignored and Docker build-ignored. Check **git status** before pushes. Never upload them to issue comments or CI logs.
@@ -15,7 +21,7 @@
 - Set `APP_UID`/`APP_GID` to host UID/GID that owns `data/` and `secrets/online/`. On Linux use `id -u`, `id -g`. Ensure `chmod 700 secrets/online`, `chmod 600 secrets/online/issuer-key.pem`, and `chmod 600 .env` (mounted files readable by the application UID). On SELinux hosts, additional volume labeling may be required.
 - Never enable `TRUST_PROXY_HEADERS=1` unless every remote caller passes through a trusted proxy that sanitizes incoming `X-Forwarded-For`. If set, all direct access must be administratively controlled. Defaults to disabled, which can group public clients behind one reverse-proxy IP for rate limiting.
 - Provide a reliable system DNS resolver. DNS TXT propagation and split-horizon DNS may affect verification. DNS spoofing/poisoning can undermine this basic model; use a secure resolver. DNSSEC is not checked.
-- The interface and issuance API are intentionally **anonymous** in this MVP. Production internet exposure should include stronger rate-limits/WAF, admin oversight, authentication/accounting, monitoring and abuse controls. A challenge is necessary to obtain each certificate, but a large anonymous CA can still be abused.
+- The issuance API now requires a single admin password and TOTP MFA, session and CSRF, plus an explicit domain allowlist. Production internet exposure still needs edge firewall/VPN, external monitoring, operational review and abuse controls. A challenge is necessary to obtain each certificate, but a large anonymous CA can still be abused.
 - For user-browser trusted HTTPS, use public CA/ACME instead. Installing private CA roots on client machines grants broad trust; do so only under managed policy.
 
 ## Observability & backup
@@ -42,7 +48,7 @@ openssl x509 -in secrets/online/root-cert.pem -noout -fingerprint -sha256
 
 ## Limits and next steps
 
-- No authentication/tenant management, cancellation, automatic renewal, revocation, CRL/OCSP, ACME, HSM or robust external CA compliance.
+- Single-admin MFA authentication exists, but no multi-tenant RBAC/SSO, cancellation, automatic renewal, revocation, CRL/OCSP, ACME, HSM or formal CA compliance.
 - DNS verification requests count against a one-hour challenge lifetime and a per-request verification attempt limit.
 - Current default certificate lifetime is 30 days; intermediate is 365 days, root is ~10 years.
 - Designed for low-cost pilot/private usage. Conduct an independent security audit before broader deployment.
