@@ -8,6 +8,8 @@ from cryptography.x509.oid import NameOID
 from fastapi.testclient import TestClient
 
 from app.main import Settings, certificate_for_domain, create_app, normalize_domain, connect
+from app.auth import hash_password, new_totp_seed, totp_for_step
+import time
 from scripts.init_ca import create_ca
 
 
@@ -23,10 +25,19 @@ def csr_for(domain, san=None):
 @pytest.fixture
 def client(tmp_path):
     create_ca(tmp_path / 'secrets', b'long-root-test-passphrase', b'long-issuer-test-passphrase')
-    settings = Settings(db_path=tmp_path / 'data' / 'panel.db', ca_dir=tmp_path / 'secrets' / 'online', ca_key_password='long-issuer-test-passphrase', max_requests_per_hour=3)
+    seed = new_totp_seed()
+    settings = Settings(db_path=tmp_path / 'data' / 'panel.db', ca_dir=tmp_path / 'secrets' / 'online', ca_key_password='long-issuer-test-passphrase', max_requests_per_hour=3,
+                        admin_password_hash=hash_password('unit-test-password-123456'), admin_totp_secret=seed,
+                        admin_session_generation='a' * 64, cert_allowed_domains='example.org')
     api = create_app(settings)
     api.state.dns_checker = lambda _name, _value: True
-    with TestClient(api) as test_client:
+    with TestClient(api, base_url="https://testserver") as test_client:
+        login = test_client.post('/api/auth/login', json={
+            'username': 'admin', 'password': 'unit-test-password-123456',
+            'code': totp_for_step(seed, int(time.time()) // 30),
+        })
+        assert login.status_code == 200, login.text
+        test_client.headers.update({'X-CSRF-Token': login.json()['csrf_token']})
         yield test_client
 
 
@@ -227,14 +238,24 @@ def test_private_key_is_not_saved_in_sqlite(client, tmp_path):
 
 def test_downloads_are_cleared_at_shutdown(tmp_path):
     create_ca(tmp_path / "secrets", b"root-secret-long-123", b"issuer-secret-long-123")
+    seed = new_totp_seed()
     settings = Settings(
         db_path=tmp_path / "data" / "panel.db",
         ca_dir=tmp_path / "secrets" / "online",
         ca_key_password="issuer-secret-long-123",
+        admin_password_hash=hash_password("another-unit-test-password-123456"),
+        admin_totp_secret=seed, admin_session_generation="b" * 64,
+        cert_allowed_domains="example.org",
     )
     api = create_app(settings)
     api.state.dns_checker = lambda name, expected: True
-    with TestClient(api) as test_client:
+    with TestClient(api, base_url="https://testserver") as test_client:
+        logged = test_client.post('/api/auth/login', json={
+            'username': 'admin', 'password': 'another-unit-test-password-123456',
+            'code': totp_for_step(seed, int(time.time()) // 30),
+        })
+        assert logged.status_code == 200
+        test_client.headers.update({'X-CSRF-Token': logged.json()['csrf_token']})
         rid = test_client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
         assert test_client.post(f"/api/requests/{rid}/verify").status_code == 200
         response = test_client.post(f"/api/requests/{rid}/issue-server")
