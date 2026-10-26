@@ -50,12 +50,21 @@ def test_browser_auto_certificate_package(tmp_path):
 
 
 def test_auto_frontend_is_enabled():
+    """UI currently signs on the API server; private key is retrieved only in a one-time ZIP.
+
+    The older cert.js remains as a standalone compatibility test fixture, but
+    the current Persian dashboard intentionally does NOT load that script.
+    """
     root = Path(__file__).resolve().parents[1]
     html = (root / "app/static/index.html").read_text(encoding="utf-8")
     js = (root / "app/static/app.js").read_text(encoding="utf-8")
-    assert '/static/cert.js' in html
+    assert '/static/app.js' in html
+    assert '/static/cert.js' not in html
     assert 'id="download-button"' in html
-    assert 'id="csr"' not in html  # no manual CSR paste needed
-    assert 'await issueAutomatically()' in js
-    assert 'generated.csrPem' in js  # only CSR uploaded, never private key
-    assert 'generated.privateKeyPem' in js  # locally added to the ZIP
+    assert 'id="csr"' not in html
+    assert "'/issue-server'" in js
+    assert "await issueAutomatically()" in js
+    assert "data.download_url" in js
+    assert "zipDeadlineMs" in js
+    assert "navigator.clipboard" in js
+    assert "generated.privateKeyPem" not in js
