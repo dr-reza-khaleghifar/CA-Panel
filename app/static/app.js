@@ -10,6 +10,17 @@ const show = id => $(id).classList.remove('hidden');
 const hide = id => $(id).classList.add('hidden');
 const formatFa = date => new Intl.DateTimeFormat('fa-IR', {dateStyle:'medium', timeStyle:'short'}).format(date);
 
+function setLabelSafe(id, value) {
+  const element = $(id);
+  if (element) element.textContent = value;
+}
+
+function displayTransportStatus() {
+  const secure = location.protocol === 'https:';
+  const local = location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  setLabelSafe('transport-status', secure ? 'اتصال HTTPS' : local ? 'محیط توسعه محلی' : 'اتصال ناامن');
+  setLabelSafe('transport-detail', secure ? 'رمزنگاری در مرورگر برقرار است' : local ? 'دسترسی محدود به localhost' : 'برای صدور، اتصال HTTPS لازم است');
+}
 // Fetch only intentionally public CA identity and policy (never secrets or paths).
 async function loadSystemInformation() {
   try {
@@ -18,14 +29,20 @@ async function loadSystemInformation() {
       const el = $(id);
       if (el && typeof value === 'string') el.textContent = value;
     };
-    setLabel('ca-topbar-name', data.display_name);
-    setLabel('ca-sidebar-name', data.display_name);
+    // Branding is the product identity, while these are live PKI metadata.
     setLabel('ca-sidebar-org', data.organization);
+    setLabel('ca-topbar-name', 'سرویس صدور فعال');
+    setLabel('service-status', 'آماده صدور');
+    $('service-status-dot')?.classList.remove('pending', 'unhealthy');
+    $('service-status-dot')?.classList.add('healthy');
+    $('header-health')?.classList.add('ready');
+    $('header-health')?.classList.remove('unavailable');
     setLabel('ca-issuer-name', data.issuer_common_name);
     setLabel('ca-root-name', data.root_common_name);
     setLabel('ca-root-fingerprint', data.root_sha256);
     if (Number.isInteger(data.certificate_validity_days)) {
       setLabel('hero-validity-days', String(data.certificate_validity_days));
+      setLabel('dashboard-validity-days', data.certificate_validity_days.toLocaleString('fa-IR'));
     }
     if (Number.isInteger(data.certificate_validity_days)) {
       setLabel('certificate-validity', data.certificate_validity_days.toLocaleString('fa-IR') + ' روز (حداکثر)');
@@ -33,24 +50,39 @@ async function loadSystemInformation() {
     if (Number.isInteger(data.download_ttl_seconds)) {
       setLabel('zip-max-age', Math.ceil(data.download_ttl_seconds / 60).toLocaleString('fa-IR') + ' دقیقه');
     }
-    if (typeof data.display_name === 'string' && data.display_name.trim()) {
-      document.title = data.display_name + ' | صدور گواهی';
-    }
   } catch (_) {
-    // Public metadata must not block issuance or interfere with one-time ZIP URLs.
+    setLabelSafe('service-status', 'ارتباط برقرار نشد');
+    setLabelSafe('ca-topbar-name', 'اتصال نامشخص');
+    $('service-status-dot')?.classList.remove('pending', 'healthy');
+    $('service-status-dot')?.classList.add('unhealthy');
+    $('header-health')?.classList.remove('ready');
+    $('header-health')?.classList.add('unavailable');
+    // A failed public metadata fetch must not disable the issuance flow.
   }
 }
 
 
+let toastClearTimer = null;
 function notify(text, success = false) {
   const banner = $('message');
   banner.textContent = text;
   banner.classList.toggle('good', success);
   banner.classList.remove('hidden');
+  const toast = $('toast');
+  if (toast) {
+    toast.textContent = text;
+    toast.classList.toggle('good', success);
+    toast.classList.remove('hidden');
+    if (toastClearTimer) clearTimeout(toastClearTimer);
+    toastClearTimer = setTimeout(() => toast.classList.add('hidden'), 6000);
+  }
 }
 function clearNotice() {
   hide('message');
   $('message').textContent = '';
+  const toast = $('toast');
+  if (toast) toast.classList.add('hidden');
+  if (toastClearTimer) clearTimeout(toastClearTimer);
 }
 function setStage(value) {
   stage = value;
@@ -212,7 +244,7 @@ for (const button of document.querySelectorAll('[data-copy]')) {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(value);
-      notify('مقدار رکورد با موفقیت کپی شد.', true);
+      notify('مقدار در کلیپ‌بورد کپی شد.', true);
     } catch {
       notify('کپی خودکار در این مرورگر در دسترس نیست؛ متن را انتخاب و دستی کپی کنید.');
     }
@@ -224,20 +256,9 @@ $('download-button').addEventListener('click', event => {
   notify('درخواست دانلود ارسال شد. ZIP را در مکانی امن ذخیره کنید؛ لینک فقط یک بار قابل استفاده است.', true);
 });
 
-const THEME_KEY = 'ca-panel-theme';
-function applyTheme(theme) {
-  const selected = theme === 'dark' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', selected);
-  $('theme-toggle').setAttribute('aria-label', selected === 'dark' ? 'فعال کردن حالت روشن' : 'فعال کردن حالت تیره');
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', selected === 'dark' ? '#0e1424' : '#f6f8fd');
-}
-try { applyTheme(localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')); }
-catch { applyTheme('light'); }
-$('theme-toggle').addEventListener('click', () => {
-  const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(theme);
-  try { localStorage.setItem(THEME_KEY, theme); } catch { /* Theme works without storage */ }
-});
+// Enterprise UI is dark-only; no user-controlled theme or saved preference.
+document.documentElement.setAttribute('data-theme', 'dark');
+displayTransportStatus();
 setInterval(updateTimers, 20000);
 setStage(1);
 loadSystemInformation();
