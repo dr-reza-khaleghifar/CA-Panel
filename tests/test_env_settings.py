@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from app.main import Settings, create_app
+from app.auth import hash_password, new_totp_seed, totp_for_step
 from scripts.init_ca import create_ca
 
 
@@ -82,9 +83,14 @@ def test_public_config_from_real_ca_and_configured_policy(tmp_path, monkeypatch)
     monkeypatch.setenv("SERVER_KEY_BITS", "3072")
     monkeypatch.setenv("CHALLENGE_SECONDS", "600")
     monkeypatch.setenv("DOWNLOAD_TTL_SECONDS", "120")
+    seed = new_totp_seed()
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", hash_password("config-test-password-123456"))
+    monkeypatch.setenv("ADMIN_TOTP_SECRET", seed)
+    monkeypatch.setenv("ADMIN_SESSION_GENERATION", "c" * 64)
+    monkeypatch.setenv("CERT_ALLOWED_DOMAINS", "example.org")
     api = create_app(Settings.from_env())
     api.state.dns_checker = lambda _name, _expected: True
-    with TestClient(api) as client:
+    with TestClient(api, base_url="https://testserver") as client:
         public = client.get("/api/system")
         assert public.status_code == 200
         info = public.json()
@@ -105,6 +111,12 @@ def test_public_config_from_real_ca_and_configured_policy(tmp_path, monkeypatch)
         }
         assert "issuer-password-long-123" not in public.text
         assert str(tmp_path) not in public.text
+        logged = client.post("/api/auth/login", json={
+            "username": "admin", "password": "config-test-password-123456",
+            "code": totp_for_step(seed, int(time.time()) // 30)
+        })
+        assert logged.status_code == 200, logged.text
+        client.headers.update({"X-CSRF-Token": logged.json()["csrf_token"]})
         created = client.post("/api/requests", json={"domain": "example.org"})
         assert created.status_code == 201, created.text
         assert 0 < created.json()["expires_at"] - time.time() <= 600
