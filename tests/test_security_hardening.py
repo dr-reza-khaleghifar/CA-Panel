@@ -73,7 +73,7 @@ def test_anonymous_cannot_issue_read_challenges_or_download_secrets(secured):
 def test_secure_cookie_csrf_and_logout(secured):
     client, _, seed = secured
     assert login(client, seed, password="wrong-password-123456").status_code == 401
-    assert login(client, seed, code="12345X").status_code == 422
+    assert login(client, seed, code="12345X").status_code == 401
     result = login(client, seed)
     assert result.status_code == 200, result.text
     cookie = result.headers["set-cookie"].lower()
