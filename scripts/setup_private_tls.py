@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import os
 import re
 import shutil
@@ -44,6 +45,12 @@ def safe_domain(domain: str) -> str:
         for part in labels
     ):
         error("PANEL_DOMAIN must be a DNS hostname, not an IP or wildcard")
+    try:
+        ipaddress.ip_address(domain)
+    except ValueError:
+        pass
+    else:
+        error("PANEL_DOMAIN cannot be an IP address; the certificate must cover a DNS name")
     return domain
 
 
