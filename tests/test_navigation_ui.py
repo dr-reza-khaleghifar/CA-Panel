@@ -39,9 +39,9 @@ def test_menu_links_reference_real_sections():
 
 def test_navigation_behaviour_files_exist():
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    assert "/static/navigation.js?v=6" in html
+    assert "/static/navigation.js?v=7" in html
     assert "/static/v5.css?v=5" in html
-    assert "/static/v6.css?v=1" in html
+    assert "/static/v6.css?v=2" in html
     js = (STATIC / "navigation.js").read_text(encoding="utf-8")
     for hook in ["aria-expanded", "aria-current", "hashchange", "scrollIntoView",
                  "Escape", "nav-open", "resize", "setActive"]:

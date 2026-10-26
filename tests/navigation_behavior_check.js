@@ -30,7 +30,7 @@ function element(id) {
     setAttribute(key, value) { attrs[key] = String(value); },
     removeAttribute(key) { delete attrs[key]; },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
-    focus() { this.focusCount++; },
+    focus() { this.focusCount++; document.activeElement = this; },
     scrollIntoView(opts) { this.scrollCount++; this.scrollOpts = opts; },
     getBoundingClientRect() { return {top:this.top}; },
     send(type, event = {preventDefault(){}}) {
@@ -54,10 +54,13 @@ nodes['how-it-works'].top = 900;
 nodes.faq.top = 1300;
 nodes.security.top = 1800;
 const brand = element('brand');
+nodes.sidebar.querySelectorAll = () => [brand, nodes['menu-close'], ...links];
+nodes.sidebar.contains = target => [brand, nodes['menu-close'], ...links].includes(target);
 const body = element('body');
 const documentListeners = {};
 const document = {
   body,
+  activeElement: null,
   getElementById: id => nodes[id],
   querySelectorAll: selector => selector === '.side-nav a[href^="#"]' ? links : [],
   querySelector: selector => selector === '.brand[href="#top"]' ? brand : null,
@@ -79,6 +82,16 @@ assert.equal(body.classList.contains('nav-open'), true);
 assert.equal(nodes['menu-toggle'].attrs['aria-expanded'], 'true');
 assert.equal(nodes['nav-backdrop'].hidden, false);
 assert.equal(nodes['menu-close'].focusCount, 1);
+// Keyboard users cannot Tab behind an open mobile navigation panel.
+let tabPrevented = false;
+brand.focus();
+documentListeners.keydown[0]({key:'Tab',shiftKey:true,preventDefault(){tabPrevented=true;}});
+assert.equal(tabPrevented, true);
+assert.equal(document.activeElement, links[4]);
+tabPrevented = false;
+documentListeners.keydown[0]({key:'Tab',shiftKey:false,preventDefault(){tabPrevented=true;}});
+assert.equal(tabPrevented, true);
+assert.equal(document.activeElement, brand);
 links[3].send('click');
 assert.equal(nodes.faq.focusCount, 1);
 assert.equal(nodes.faq.scrollCount, 1);

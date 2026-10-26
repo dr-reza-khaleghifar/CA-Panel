@@ -410,3 +410,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{
   #stage-progress-fill{transition:none}
   .btn.is-loading:before{animation:none}
 }
+
+.pending-card.is-failed{background:#37283b;border-color:#75475c;color:#fbe0e6}
+.pending-card.is-failed .pending-spinner{animation:none;border-color:#a65a76;border-top-color:#ffb0c0}
+.pending-card.is-failed strong{color:#ffe0e9}
+.pending-card.is-failed p{color:#f3c5d1}

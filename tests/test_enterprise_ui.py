@@ -96,6 +96,35 @@ def test_brand_defaults_are_not_ca_subject_rotation():
     assert "CA_ISSUER_CN=CA-Panel Online Issuing CA" in template
 
 
+
+
+def test_task_first_issuance_and_accessible_wizard_states():
+    html = (UI / "index.html").read_text("utf-8")
+    js = (UI / "app.js").read_text("utf-8")
+    css = (UI / "v6.css").read_text("utf-8")
+    assert html.index('id="overview"') < html.index('id="issue-workspace"') < html.index('class="hero"')
+    assert 'class="skip-link"' in html
+    assert 'role="progressbar"' in html and 'aria-valuenow="33"' in html
+    for required in ("stage-progress-fill", "stage-context", "refresh-status",
+                     "domain-preview", "dns-guidance", "download-status",
+                     "issue-pending-status", "pending-card"):
+        assert f'id="{required}"' in html
+    for heading in ("domain-heading", "dns-heading", "issue-heading", "success-heading"):
+        assert f'id="{heading}" tabindex="-1"' in html
+    assert "focusStage('dns-heading')" in js
+    assert "focusStage('success-heading')" in js
+    assert "setDnsGuidance(message, true)" in js
+    assert "aria-busy" in js
+    assert "loadSystemInformation()" in js
+    assert "if (expired) setLabelSafe('download-status'" in js
+    assert "navigator.clipboard" in js and "document.createRange" in js
+    assert 'href="/api/ca.pem"' in html
+    assert "اثر انگشت SHA-256 آن را از مسیر مستقل تأیید کنید" in html
+    assert ".skip-link:focus-visible" in css
+    assert ".private-download.expiring" in css
+    assert "#stage-progress-fill" in css
+    assert "privateKeyPem" not in js
+
 @pytest.mark.parametrize("name", ["app.js", "navigation.js"])
 def test_frontend_javascript_parses(name):
     if not shutil.which("node"):
