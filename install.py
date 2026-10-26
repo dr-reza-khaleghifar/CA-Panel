@@ -160,7 +160,7 @@ def check_prerequisites(*, docker: bool, crypto: bool) -> None:
             fail("Python cryptography package is needed to create a CA. "
                  "On the trusted admin machine, use: "
                  "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt; "
-                 "then run .venv/bin/python install.py --init-ca") from exc
+                 "then run .venv/bin/python install.py --init-ca")
 
 
 def generate_ca(profile=None) -> str:
@@ -219,7 +219,7 @@ def maybe_check_issuer_password(online: Path, filename: str, password: str) -> N
         )
     except (ValueError, TypeError) as exc:
         fail("Issuing CA key cannot be decrypted with the configured password. "
-             "Check CA_KEY_PASSWORD (not the Root CA password).") from exc
+             "Check CA_KEY_PASSWORD (not the Root CA password).")
 
 
 def check_health() -> bool:
