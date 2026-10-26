@@ -189,3 +189,18 @@ def test_security_audit_excludes_credentials_and_bearer_secrets(secured):
     assert "secure-test-password-123456" not in repr(events)
     assert seed not in repr(events)
     assert csrf not in repr(events)
+
+
+def test_login_bruteforce_lockout_rejects_without_unbounded_audit(secured):
+    client, settings, seed = secured
+    for _ in range(10):
+        assert login(client, seed, password="wrong-password-123456").status_code == 401
+    before = None
+    with sqlite3.connect(settings.db_path) as con:
+        before = con.execute("SELECT COUNT(*) FROM security_audit").fetchone()[0]
+    assert before == 10
+    for _ in range(4):
+        assert login(client, seed, password="wrong-password-123456").status_code == 429
+    with sqlite3.connect(settings.db_path) as con:
+        after = con.execute("SELECT COUNT(*) FROM security_audit").fetchone()[0]
+    assert after == before, "Blocked login requests must not grow the security audit database"

@@ -35,7 +35,7 @@ BASE = Path(__file__).resolve().parent
 DISALLOWED_SUFFIXES = {"local", "localhost", "internal", "test", "example", "invalid", "onion", "home", "arpa"}
 
 from app.config import Settings
-from app.auth import (SESSION_COOKIE, authenticate, audit, domain_permitted, domain_suffixes,
+from app.auth import (SESSION_COOKIE, LoginRateLimited, authenticate, audit, domain_permitted, domain_suffixes,
                       end_session, get_session, initialize_auth_db)
 
 
@@ -386,10 +386,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def auth_login(body: AdminLoginInput):
         if not admin_ready:
             raise HTTPException(503, "Administrator enrollment required on the server")
-        pair = authenticate(settings.db_path, username=body.username, password=body.password,
-                            code=body.code, stored_hash=settings.admin_password_hash,
-                            seed=settings.admin_totp_secret,
-                            generation=settings.admin_session_generation)
+        try:
+            pair = authenticate(settings.db_path, username=body.username, password=body.password,
+                                code=body.code, stored_hash=settings.admin_password_hash,
+                                seed=settings.admin_totp_secret,
+                                generation=settings.admin_session_generation)
+        except LoginRateLimited:
+            # Do not write one audit row per blocked request: a bot could fill
+            # the SQLite disk even while the password/MFA throttle works.
+            raise HTTPException(429, "Administrator login temporarily rate-limited")
         if pair is None:
             audit(settings.db_path, "admin_login_denied")
             raise HTTPException(401, "Incorrect credentials or login temporarily limited")

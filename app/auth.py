@@ -14,6 +14,12 @@ SESSION_SECONDS = 8 * 3600
 FAILED_WINDOW = 15 * 60
 FAILED_LIMIT = 10
 SESSION_COOKIE = "iran_ca_session"
+
+
+class LoginRateLimited(Exception):
+    """Too many recent administrator login failures; do not expand audit logs."""
+
+
 HASH_PATTERN = re.compile(r"^pbkdf2_sha256\$(\d{6,8})\$([0-9a-f]{32})\$([0-9a-f]{64})$")
 DOMAIN_PATTERN = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 
@@ -102,7 +108,7 @@ def authenticate(db: Path, *, username: str, password: str, code: str,
         con.execute("DELETE FROM admin_login_failures WHERE created_at < ?", (now - FAILED_WINDOW,))
         if con.execute("SELECT COUNT(*) FROM admin_login_failures").fetchone()[0] >= FAILED_LIMIT:
             con.commit()
-            return None
+            raise LoginRateLimited("Administrator login is temporarily rate-limited")
         counter = matching_totp_step(seed, code, now)
         verified = (hmac.compare_digest(username.encode(), b"admin") and
                     len(password) <= 1024 and check_password(password, stored_hash) and counter is not None)
