@@ -52,8 +52,8 @@ services:
     profiles: ["private-tls"]
     restart: unless-stopped
     ports:
-      - "443:443"
-      - "443:443/udp"
+      - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443"
+      - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443/udp"
     environment:
       PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
     volumes:
