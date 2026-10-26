@@ -7,7 +7,7 @@ REQUIRED_IDS = {
     "domain-form", "domain", "domain-submit", "dns-panel", "domain-panel",
     "issue-panel", "success-panel", "dns-name", "dns-value",
     "verify-button", "issue-button", "download-button", "leaf-link",
-    "fullchain-link", "issuer-link", "root-link", "theme-toggle", "message",
+    "fullchain-link", "issuer-link", "root-link", "overview", "service-status", "toast", "message",
 }
 
 
@@ -36,6 +36,9 @@ def test_persian_dashboard_dependencies_and_unique_ids():
     assert len(parser.ids) == len(set(parser.ids))
     assert REQUIRED_IDS.issubset(parser.ids)
     assert any(x.startswith("/static/v4.css") for x in parser.styles)
+    assert any(x.startswith("/static/v6.css") for x in parser.styles)
+    assert 'data-theme="dark"' in html and 'id="theme-toggle"' not in html
+    assert "گواهی دیجیتال ایران" in html and "Iran CA Center" in html
     assert all(x.startswith("/static/") for x in parser.styles + parser.scripts)
     assert "fonts.googleapis.com" not in html
 

@@ -31,7 +31,7 @@ def test_ui_has_all_issue_and_download_controls():
         "download-button", "leaf-link", "fullchain-link",
         "issuer-link", "root-link", "certificate-expiry",
         "download-expiry", "challenge-expiry", "message",
-        "theme-toggle", "step-1", "step-2", "step-3",
+        "overview", "service-status", "transport-status", "toast", "step-1", "step-2", "step-3",
     }
     assert expected.issubset(parser.ids)
     assert len(parser.ids) == len(set(parser.ids))
@@ -43,7 +43,9 @@ def test_ui_keeps_server_issuance_and_secure_download_contract():
     css = (STATIC / "style.css").read_text(encoding="utf8")
     assert "/issue-server" in js
     assert "download_url" in js
-    assert "localStorage.setItem(THEME_KEY" in js
+    assert "localStorage.setItem(THEME_KEY" not in js
+    assert "document.documentElement.setAttribute(\'data-theme\', \'dark\')" in js
+    assert "displayTransportStatus()" in js
     assert "localStorage.setItem(THE_KEY" not in js
     assert "issuedLinks" in js
     assert "dns-value" in js

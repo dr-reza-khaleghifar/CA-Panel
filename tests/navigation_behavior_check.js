@@ -39,15 +39,17 @@ function element(id) {
   };
 }
 const ids = ['sidebar','menu-toggle','menu-close','nav-backdrop',
-             'issue-workspace','how-it-works','faq','security','top'];
+             'overview','issue-workspace','how-it-works','faq','security','top','breadcrumb-current'];
 const nodes = Object.fromEntries(ids.map(id => [id,element(id)]));
-const targets = ['issue-workspace','how-it-works','faq','security'];
+const targets = ['overview','issue-workspace','how-it-works','faq','security'];
 const links = targets.map(id => {
   const link = element('link-' + id);
   link.setAttribute('href', '#' + id);
+  link.querySelector = selector => selector === 'span:not(.nav-end)' ? {textContent:id} : null;
   return link;
 });
-nodes['issue-workspace'].top = 90;
+nodes.overview.top = 90;
+nodes['issue-workspace'].top = 600;
 nodes['how-it-works'].top = 900;
 nodes.faq.top = 1300;
 nodes.security.top = 1800;
@@ -77,11 +79,11 @@ assert.equal(body.classList.contains('nav-open'), true);
 assert.equal(nodes['menu-toggle'].attrs['aria-expanded'], 'true');
 assert.equal(nodes['nav-backdrop'].hidden, false);
 assert.equal(nodes['menu-close'].focusCount, 1);
-links[2].send('click');
+links[3].send('click');
 assert.equal(nodes.faq.focusCount, 1);
 assert.equal(nodes.faq.scrollCount, 1);
 assert.equal(window.history.hash, '#faq');
-assert.equal(links[2].attrs['aria-current'], 'location');
+assert.equal(links[3].attrs['aria-current'], 'location');
 assert.equal(body.classList.contains('nav-open'), false);
 nodes['menu-toggle'].send('click');
 documentListeners.keydown[0]({key:'Escape'});
@@ -90,7 +92,7 @@ assert.equal(nodes['menu-toggle'].focusCount > 0, true);
 nodes.faq.top = 100;
 nodes.security.top = 900;
 windowListeners.scroll[0]();
-assert.equal(links[2].attrs['aria-current'], 'location');
+assert.equal(links[3].attrs['aria-current'], 'location');
 nodes['menu-toggle'].send('click');
 nodes['nav-backdrop'].send('click');
 assert.equal(body.classList.contains('nav-open'), false);

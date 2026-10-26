@@ -33,14 +33,15 @@ def test_menu_links_reference_real_sections():
     doc = NavParser()
     doc.feed((STATIC / "index.html").read_text(encoding="utf-8"))
     assert {"menu-toggle", "menu-close", "nav-backdrop", "sidebar", "faq"}.issubset(doc.ids)
-    assert doc.nav_links == ["#issue-workspace", "#how-it-works", "#faq", "#security"]
+    assert doc.nav_links == ["#overview", "#issue-workspace", "#how-it-works", "#faq", "#security"]
     assert all(href[1:] in doc.ids for href in doc.nav_links)
 
 
 def test_navigation_behaviour_files_exist():
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    assert "/static/navigation.js?v=5" in html
+    assert "/static/navigation.js?v=6" in html
     assert "/static/v5.css?v=5" in html
+    assert "/static/v6.css?v=1" in html
     js = (STATIC / "navigation.js").read_text(encoding="utf-8")
     for hook in ["aria-expanded", "aria-current", "hashchange", "scrollIntoView",
                  "Escape", "nav-open", "resize", "setActive"]:
