@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Iran CA Center">
+  <defs><linearGradient id="b" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#78b2ff"/><stop offset="1" stop-color="#2f65a8"/></linearGradient></defs>
+  <rect width="64" height="64" rx="17" fill="#101d2e"/>
+  <path d="M32 7 53 15v16c0 15-10.8 23.3-21 28C21.8 54.3 11 46 11 31V15Z" fill="url(#b)" stroke="#a7d0ff" stroke-width="2"/>
+  <path d="M22 32l7 7 14-16" fill="none" stroke="#081624" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+</svg>
