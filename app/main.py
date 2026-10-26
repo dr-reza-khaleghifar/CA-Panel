@@ -27,7 +27,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -35,6 +35,14 @@ BASE = Path(__file__).resolve().parent
 DISALLOWED_SUFFIXES = {"local", "localhost", "internal", "test", "example", "invalid", "onion", "home", "arpa"}
 
 from app.config import Settings
+from app.auth import (SESSION_COOKIE, authenticate, audit, domain_permitted, domain_suffixes,
+                      end_session, get_session, initialize_auth_db)
+
+
+class AdminLoginInput(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=1024)
+    code: str = Field(min_length=6, max_length=6)
 
 
 class DomainInput(BaseModel):
@@ -293,6 +301,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         init_db(settings.db_path)
+        initialize_auth_db(settings.db_path)
         app.state.ca = load_issuer(
             settings.ca_dir, settings.ca_key_password,
             settings.ca_issuer_key_file, settings.ca_issuer_cert_file,
@@ -326,17 +335,79 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title=settings.ca_display_name, version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.downloads = {}
     app.state.downloads_lock = threading.Lock()
+    admin_ready = bool(settings.admin_password_hash and settings.admin_totp_secret
+                       and settings.admin_session_generation)
+    issuance_domains = domain_suffixes(settings.cert_allowed_domains) if settings.cert_allowed_domains else ()
+
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
-        response = await call_next(request)
+        path = request.url.path
+        public = (path in ("/healthz", "/login", "/api/system", "/api/ca.pem",
+                           "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
+                  or path.startswith("/static/"))
+        csrf = (get_session(settings.db_path, request.cookies.get(SESSION_COOKIE),
+                            settings.admin_session_generation)
+                if admin_ready else None)
+        request.state.admin_csrf = csrf
+        if not public:
+            if not admin_ready:
+                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                            else JSONResponse({"detail": "Administrator enrollment required"}, status_code=503))
+            elif csrf is None:
+                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                            else JSONResponse({"detail": "Administrator login required"}, status_code=401))
+            elif request.method not in ("GET", "HEAD", "OPTIONS") and not secrets.compare_digest(
+                    request.headers.get("x-csrf-token", ""), csrf):
+                response = JSONResponse({"detail": "Invalid CSRF token"}, status_code=403)
+            else:
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         return response
+
+    @app.get("/login", include_in_schema=False)
+    def login_page():
+        return FileResponse(BASE / "static" / "login.html", media_type="text/html")
+
+    @app.get("/api/auth/status")
+    def auth_status(request: Request):
+        csrf = request.state.admin_csrf
+        return {"authenticated": bool(csrf), "configured": admin_ready,
+                **({"csrf_token": csrf, "username": "admin"} if csrf else {})}
+
+    @app.post("/api/auth/login")
+    def auth_login(body: AdminLoginInput):
+        if not admin_ready:
+            raise HTTPException(503, "Administrator enrollment required on the server")
+        pair = authenticate(settings.db_path, username=body.username, password=body.password,
+                            code=body.code, stored_hash=settings.admin_password_hash,
+                            seed=settings.admin_totp_secret,
+                            generation=settings.admin_session_generation)
+        if pair is None:
+            audit(settings.db_path, "admin_login_denied")
+            raise HTTPException(401, "Incorrect credentials or login temporarily limited")
+        token, csrf = pair
+        audit(settings.db_path, "admin_login_success")
+        result = JSONResponse({"authenticated": True, "csrf_token": csrf})
+        result.set_cookie(SESSION_COOKIE, token, max_age=8 * 3600, path="/",
+                          secure=True, httponly=True, samesite="strict")
+        return result
+
+    @app.post("/api/auth/logout")
+    def auth_logout(request: Request):
+        end_session(settings.db_path, request.cookies.get(SESSION_COOKIE))
+        audit(settings.db_path, "admin_logout")
+        result = JSONResponse({"authenticated": False})
+        result.delete_cookie(SESSION_COOKIE, path="/", secure=True,
+                             httponly=True, samesite="strict")
+        return result
 
     @app.get("/", include_in_schema=False)
     def home():
@@ -384,6 +455,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             domain = normalize_domain(body.domain)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+        # Operator-approved suffix allowlist; DNS TXT proof remains mandatory.
+        if not domain_permitted(domain, issuance_domains):
+            audit(settings.db_path, "issuance_domain_denied", domain)
+            raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
         client_ip = client_address(request, settings)
         rid, token = secrets.token_urlsafe(24), secrets.token_urlsafe(32)
@@ -395,6 +470,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(429, "Rate limit exceeded; try again later")
             con.execute("INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at) VALUES(?,?,?,?,?,?)", (rid, domain, token, client_ip, now, now + settings.challenge_seconds))
             row = con.execute("SELECT * FROM challenges WHERE id=?", (rid,)).fetchone()
+        audit(settings.db_path, "issuance_requested", domain)
         return public_view(row)
 
     def get_challenge_or_404(rid: str):
@@ -453,6 +529,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             cur = con.execute("UPDATE challenges SET issued_at=?, cert_pem=?, serial_hex=? WHERE id=? AND issued_at IS NULL", (now, cert_pem, format(cert.serial_number, "x"), rid))
             if cur.rowcount != 1:
                 raise HTTPException(409, "Certificate already issued")
+        audit(settings.db_path, "certificate_issued_csr", row["domain"])
         return {"domain": row["domain"], "certificate_pem": cert_pem, "chain_pem": chain_pem, "fullchain_pem": cert_pem + chain_pem, "expires_at": cert.not_valid_after_utc.isoformat(), "serial_hex": format(cert.serial_number, "x")}
 
 
@@ -509,6 +586,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if cur.rowcount != 1:
                     raise HTTPException(409, "Challenge expired or certificate already issued")
             app.state.downloads[capability] = (deadline, archive, row["domain"] + "-certificates.zip")
+        audit(settings.db_path, "certificate_issued_server", row["domain"])
         prefix = "/api/requests/" + rid
         return {
             "domain": row["domain"],
