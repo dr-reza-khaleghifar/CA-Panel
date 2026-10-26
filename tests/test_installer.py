@@ -188,3 +188,45 @@ def test_installer_rejects_invalid_new_ca_profile_before_generation(tmp_path, mo
                         lambda *args: pytest.fail("Invalid CA profile must not generate certificates"))
     with pytest.raises(ValueError, match="CA_ROOT_KEY_BITS"):
         install.main()
+
+
+
+def test_private_https_requires_leaf_cert_and_key_before_docker(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch, existing_env=(
+        "CA_KEY_PASSWORD='knownPassword123'\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\n"
+        "PANEL_TLS_HOST_DIR=./secrets/tls\n"
+    ))
+    monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
+    from scripts import setup_private_tls
+    monkeypatch.setattr(setup_private_tls, "ROOT", tmp_path)
+    monkeypatch.setattr(install, "run",
+                        lambda *args, **kwargs: pytest.fail("Do not run Docker before TLS files exist"))
+    with pytest.raises(RuntimeError, match="Private TLS files missing"):
+        install.main()
+
+
+def test_private_https_runs_expected_compose_profile_and_checks_tls(tmp_path, monkeypatch):
+    prepare(tmp_path, monkeypatch, existing_env=(
+        "CA_KEY_PASSWORD='knownPassword123'\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\n"
+        "PANEL_TLS_HOST_DIR=./secrets/tls\n"
+    ))
+    from scripts import setup_private_tls
+    monkeypatch.setattr(setup_private_tls, "ROOT", tmp_path)
+    tls = tmp_path / "secrets" / "tls"
+    tls.mkdir(mode=0o700)
+    (tls / "fullchain.pem").write_text("test cert placeholder", encoding="utf-8")
+    (tls / "privkey.pem").write_text("test leaf-key placeholder", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
+    monkeypatch.setattr(install, "run", lambda *args, **kwargs: calls.append(args))
+    monkeypatch.setattr(install, "check_health", lambda: True)
+    tls_checks = []
+    monkeypatch.setattr(install, "private_https_is_healthy",
+                        lambda root, name: tls_checks.append((root, name)) or True)
+    assert install.main() == 0
+    assert ("docker", "compose", "--profile", "private-tls", "up", "-d",
+            "--build", "api", "caddy-private") in calls
+    assert tls_checks == [(tmp_path / "secrets" / "online" / "root-cert.pem",
+                           "ca1.iravand.ir")]
