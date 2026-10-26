@@ -1,0 +1,10 @@
+{
+    # Private CA TLS is supplied from files; no ACME attempts and no HTTP:80 redirect.
+    auto_https disable_redirects
+}
+
+https://{$PANEL_DOMAIN} {
+    tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem
+    encode zstd gzip
+    reverse_proxy api:8000
+}

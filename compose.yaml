@@ -44,6 +44,31 @@ services:
       retries: 3
       start_period: 15s
 
+  # HTTPS with the certificate issued by YOUR own Issuing CA.
+  # Start using: docker compose --profile private-tls up -d --build api caddy-private
+  # Keep this profile mutually exclusive with the existing public/ACME Caddy.
+  caddy-private:
+    image: caddy:2.10
+    profiles: ["private-tls"]
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
+    volumes:
+      - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
+      - ${PANEL_TLS_HOST_DIR:-./secrets/tls}:/etc/caddy/tls:ro
+      - caddy_private_data:/data
+      - caddy_private_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 128m
+
   caddy:
     image: caddy:2.10
     profiles: ["public"]
@@ -68,3 +93,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_private_data:
+  caddy_private_config:
