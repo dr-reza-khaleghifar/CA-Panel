@@ -415,3 +415,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{
 .pending-card.is-failed .pending-spinner{animation:none;border-color:#a65a76;border-top-color:#ffb0c0}
 .pending-card.is-failed strong{color:#ffe0e9}
 .pending-card.is-failed p{color:#f3c5d1}
+
+.admin-logout{display:inline-flex!important;align-items:center;gap:7px;color:#cce1ff;background:#172943;border:1px solid #39597b;font-size:11px;min-height:36px;padding:8px 12px;border-radius:9px}
+.admin-logout .icon{width:15px;height:15px}
+.admin-logout:hover:not(:disabled){color:#fff;background:#244063}
+@media(max-width:480px){.admin-logout{padding:8px;min-height:34px}.admin-logout span{display:none}}

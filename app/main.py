@@ -507,6 +507,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/requests/{rid}/issue", status_code=201)
     def issue_request(rid: str, body: CsrInput):
         row = get_challenge_or_404(rid)
+        if not domain_permitted(row["domain"], issuance_domains):
+            audit(settings.db_path, "issuance_domain_denied", row["domain"])
+            raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
         if row["expires_at"] < now:
             raise HTTPException(410, "Challenge expired")
@@ -537,6 +540,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def issue_server_side(rid: str):
         """Create a new RSA private key on server, issue and offer ONE-TIME ZIP download."""
         row = get_challenge_or_404(rid)
+        if not domain_permitted(row["domain"], issuance_domains):
+            audit(settings.db_path, "issuance_domain_denied", row["domain"])
+            raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
         if row["expires_at"] < now:
             raise HTTPException(410, "Challenge expired. Create a new DNS request.")

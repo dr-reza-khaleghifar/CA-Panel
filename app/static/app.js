@@ -5,6 +5,8 @@ let issuedLinks = null;
 let deadlineMs = 0;
 let zipDeadlineMs = 0;
 let stage = 1;
+let csrfToken = null;
+let adminSessionReady = null;
 let downloadAttempted = false;
 const $ = id => document.getElementById(id);
 const show = id => $(id).classList.remove('hidden');
@@ -144,10 +146,20 @@ function showSuccess() {
   focusStage('success-heading');
 }
 async function api(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    await adminSessionReady;
+    if (!csrfToken) throw new Error('نشست مدیر معتبر نیست؛ دوباره وارد سامانه شوید.');
+  }
+  const headers = {'Content-Type':'application/json', ...(options.headers || {})};
+  if (method !== 'GET' && method !== 'HEAD') headers['X-CSRF-Token'] = csrfToken;
   const response = await fetch(path, {
-    cache: 'no-store', credentials: 'same-origin', ...options,
-    headers: {'Content-Type':'application/json', ...(options.headers || {})}
+    cache: 'no-store', credentials: 'same-origin', ...options, headers
   });
+  if (response.status === 401) {
+    location.replace('/login');
+    throw new Error('نشست مدیر منقضی شده است؛ دوباره وارد شوید.');
+  }
   const result = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = typeof result?.detail === 'string' ? result.detail : '';
@@ -333,6 +345,37 @@ $('download-button').addEventListener('click', event => {
   notify('درخواست دانلود ZIP ارسال شد؛ ذخیره‌شدن فایل را در مرورگر بررسی کنید.', true);
 });
 
+async function loadAdminSession() {
+  try {
+    const response = await fetch('/api/auth/status', {credentials:'same-origin', cache:'no-store'});
+    if (!response.ok) throw new Error('Admin status unavailable');
+    const status = await response.json();
+    if (!status.authenticated || typeof status.csrf_token !== 'string') {
+      location.replace('/login');
+      return;
+    }
+    csrfToken = status.csrf_token;
+  } catch {
+    csrfToken = null;
+    notify('نشست مدیر قابل تأیید نیست؛ صفحه را بارگذاری مجدد کنید.');
+  }
+}
+
+$('admin-logout').addEventListener('click', async () => {
+  const button = $('admin-logout');
+  button.disabled = true;
+  try {
+    await adminSessionReady;
+    const response = await api('/api/auth/logout', {method:'POST'});
+    if (!response.authenticated) {
+      csrfToken = null;
+      location.replace('/login');
+    }
+  } catch {
+    notify('خروج با خطا روبه‌رو شد؛ برای خروج امن، پس از بررسی اتصال دوباره تلاش کنید.');
+  } finally { button.disabled = false; }
+});
+
 // Enterprise UI is dark-only; no user-controlled theme or saved preference.
 document.documentElement.setAttribute('data-theme', 'dark');
 $('domain').addEventListener('input', previewDomain);
@@ -352,6 +395,7 @@ $('refresh-status').addEventListener('click', async () => {
   }
 });
 displayTransportStatus();
+adminSessionReady = loadAdminSession();
 setInterval(updateTimers, 20000);
 setStage(1);
 loadSystemInformation();
