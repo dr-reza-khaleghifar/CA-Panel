@@ -1,0 +1,26 @@
+/* Sign-in for stock browsers; dark, no remote fonts or JS dependencies. */
+.login-page{min-height:100vh;margin:0;background:radial-gradient(ellipse at 50% -30%,#254d7949,transparent 58%),#080e1a}
+.login-shell{width:min(100%,530px);margin:0 auto;padding:clamp(32px,8vh,80px) 18px 45px}
+.login-brand{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:27px}
+.login-brand strong{display:block;color:#f7faff;font-size:19px}
+.login-brand small{display:block;color:#a9c8ed;font:700 10px ui-sans-serif,Arial,sans-serif;letter-spacing:2px;text-align:right;margin-top:4px}
+.login-mark{display:grid;place-items:center;width:52px;height:52px;background:linear-gradient(140deg,#5585c5,#25466d);border:1px solid #7aadee;border-radius:15px;color:#dcefff;font-size:25px}
+.login-card{padding:clamp(25px,5vw,39px);background:linear-gradient(145deg,#15253b,#101c2e);border:1px solid #375477;border-radius:21px;box-shadow:0 26px 80px #0007}
+.login-eyebrow{display:flex;align-items:center;gap:9px;color:#acd0ff;font-size:11px;font-weight:800}
+.login-led{width:8px;height:8px;border-radius:50%;background:#7adebe;box-shadow:0 0 0 4px #7adebe22}
+.login-card h1{font-size:clamp(21px,4vw,28px);color:#f5faff;line-height:1.65;margin:16px 0 9px}
+.login-card>p{color:#adbed6;font-size:12px;line-height:2.1;margin:0 0 23px}
+.login-card form{display:grid;gap:11px}
+.login-card label{font-size:12px;font-weight:800;color:#e4efff;margin-top:10px}
+.login-card input{background:#0b192b;color:#f6faff;border:1px solid #355473;border-radius:11px;min-height:48px;padding:11px 14px;font-size:14px;outline:none;width:100%;box-sizing:border-box}
+.login-card input:focus-visible{border-color:#a1c9ff;box-shadow:0 0 0 3px #6ca6ee25}
+.login-card input::placeholder{color:#7288a7}
+.login-card form small{color:#a0b4d1;font-size:11px;line-height:1.9}
+.login-card button{background:#7aafff;border:1px solid #9ec5ff;border-radius:11px;min-height:49px;margin-top:13px;color:#0b1830;font-size:13px;font-weight:850;cursor:pointer}
+.login-card button:hover:not(:disabled){background:#a1c8ff}
+.login-card button:disabled{opacity:.6;cursor:progress}
+.login-card .login-footnote{padding-top:19px;border-top:1px solid #344862;margin-top:25px;margin-bottom:0;font-size:10px;line-height:2;color:#91a4c0}
+.login-card code{color:#accdff;unicode-bidi:plaintext;overflow-wrap:anywhere}
+.login-notice{background:#392537;color:#ffd0da;border:1px solid #895064;padding:13px;border-radius:11px;font-size:12px;line-height:2;margin:15px 0}
+.login-footer{text-align:center;color:#839bbd;font:500 10px ui-sans-serif,Arial,sans-serif;margin-top:27px}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
