@@ -92,3 +92,8 @@ CA_ISSUER_CERT_FILE=issuer-cert.pem
 - ویرایش این مشخصات در `.env` **پس از ساخت CA**، نام، اعتبار یا اندازه کلید گواهی‌های موجود را عوض نمی‌کند. برای تغییر هویت CA، فرایند رسمی تعویض/چرخش CA و توزیع اعتماد جدید لازم است.
 
 برای اجرای اسکریپت سنتی ساخت CA نیز می‌توانید روی کامپیوتر امن از `python scripts/init_ca.py --env .env --output secrets` استفاده کنید.
+
+
+## راه‌اندازی HTTPS اختصاصی روی ۴۴۳
+
+اگر می‌خواهید پنل با **گواهی صادرشده از CA خودتان** و بدون ACME اجرا شود، پس از صدور گواهی leaf با نام دامنه `PANEL_DOMAIN`، ZIP یک‌بارمصرف را با `python3 scripts/setup_private_tls.py --zip /path/to/domain-certificates.zip` نصب و سپس `bash install.sh --private-https` را اجرا کنید. برای جلوگیری از تداخل دو وب‌سرور، پروفایل `public` نباید هم‌زمان با `private-tls` فعال باشد. [راهنمای کامل](PRIVATE_HTTPS.md).

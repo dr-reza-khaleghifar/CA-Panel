@@ -196,3 +196,12 @@ For **new CA creation only**, the secure administrative workstation can read the
 `bash install.sh --init-ca` validates these parameters and writes the selected filenames without ever overwriting existing keys. The direct CLI `python scripts/init_ca.py --env .env --output secrets` also accepts these options. No Root private key is passed through Compose or placed in `.env`. The Root key is generated offline in `secrets/offline/` and must be transferred off the server before normal installation.
 
 **CA subjects are signed into certificates.** Altering their env fields after CA provisioning does not change an existing issuer/root certificate. Changing the root identity or cryptographic properties requires explicit CA migration, trust-anchor distribution, and protection of issuance history. The runtime `/api/system` endpoint reports the actual X.509 subjects and public root fingerprint, not hypothetical values from env.
+
+
+## Serve the panel on HTTPS 443 with your own CA certificate
+
+A separate Docker Compose profile `private-tls` starts `caddy-private`, configured by [Caddyfile.private](../Caddyfile.private). It binds TCP/UDP :443, mounts **only** leaf TLS key + fullchain from `PANEL_TLS_HOST_DIR` as read-only, and reverse-proxies to `api:8000`. The original ACME `public` profile remains available but is mutually exclusive because both bind :443. The API still binds localhost :8080 for administrative bootstrap.
+
+**Important**: Use an actual `serverAuth` leaf with SAN = `PANEL_DOMAIN`, signed by your own Issuing CA. Never expose Issuing/Root signing private keys to Caddy. Provision the one-time certificate ZIP using `python3 scripts/setup_private_tls.py --zip /path/to/ca1.iravand.ir-certificates.zip`; it checks trust against the deployed CA Root, domain SAN, leaf/private key match and expiration using host OpenSSL. Then `bash install.sh --private-https` builds/starts both API and Caddy and verifies the TLS handshake on 127.0.0.1:443 with the private Root CA trust anchor.
+
+**No automatic leaf renewal**: reissue with a fresh DNS proof before leaf expiry; rerun setup with `--replace` and restart `caddy-private`. See [PRIVATE_HTTPS.md](PRIVATE_HTTPS.md) for complete step-by-step instructions and browser trust limitations.
