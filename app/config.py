@@ -39,8 +39,25 @@ class Settings:
     server_key_bits: int = 2048
     download_ttl_seconds: int = 600
     max_pending_downloads: int = 100
+    admin_password_hash: str = ""
+    admin_totp_secret: str = ""
+    admin_session_generation: str = ""
+    cert_allowed_domains: str = ""
 
     def __post_init__(self) -> None:
+        from app.auth import HASH_PATTERN, validate_totp_seed, domain_suffixes
+        credentials = (self.admin_password_hash, self.admin_totp_secret, self.admin_session_generation)
+        if any(credentials) and not all(credentials):
+            raise ValueError("ADMIN_PASSWORD_HASH, ADMIN_TOTP_SECRET and ADMIN_SESSION_GENERATION must all be set")
+        if all(credentials):
+            if not HASH_PATTERN.fullmatch(self.admin_password_hash):
+                raise ValueError("ADMIN_PASSWORD_HASH is malformed; run setup_admin.py")
+            if not validate_totp_seed(self.admin_totp_secret):
+                raise ValueError("ADMIN_TOTP_SECRET is malformed; run setup_admin.py")
+            if not re.fullmatch(r"[0-9a-f]{64}", self.admin_session_generation):
+                raise ValueError("ADMIN_SESSION_GENERATION is malformed; run setup_admin.py")
+        if self.cert_allowed_domains:
+            domain_suffixes(self.cert_allowed_domains)
         limits = {
             "CHALLENGE_SECONDS": (self.challenge_seconds, 300, 86400),
             "MAX_REQUESTS_PER_HOUR": (self.max_requests_per_hour, 1, 1000),
@@ -94,4 +111,8 @@ class Settings:
             server_key_bits=env_int("SERVER_KEY_BITS", 2048),
             download_ttl_seconds=env_int("DOWNLOAD_TTL_SECONDS", 600),
             max_pending_downloads=env_int("MAX_PENDING_DOWNLOADS", 100),
+            admin_password_hash=os.getenv("ADMIN_PASSWORD_HASH", ""),
+            admin_totp_secret=os.getenv("ADMIN_TOTP_SECRET", ""),
+            admin_session_generation=os.getenv("ADMIN_SESSION_GENERATION", ""),
+            cert_allowed_domains=os.getenv("CERT_ALLOWED_DOMAINS", ""),
         )
