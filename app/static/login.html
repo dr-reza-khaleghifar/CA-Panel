@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="theme-color" content="#080e1a">
+ <meta name="description" content="ورود امن به گواهی دیجیتال ایران - Iran CA Center">
+ <title>ورود امن | گواهی دیجیتال ایران</title>
+ <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+ <link rel="stylesheet" href="/static/style.css?v=5">
+ <link rel="stylesheet" href="/static/v4.css?v=5">
+ <link rel="stylesheet" href="/static/v6.css?v=3">
+ <link rel="stylesheet" href="/static/login.css?v=1">
+ <script src="/static/login.js?v=1" defer></script>
+</head>
+<body class="login-page">
+ <main class="login-shell" aria-labelledby="login-title">
+  <div class="login-brand"><span class="login-mark" aria-hidden="true">✦</span><div><strong>گواهی دیجیتال ایران</strong><small dir="ltr">IRAN CA CENTER</small></div></div>
+  <section class="login-card">
+   <div class="login-eyebrow"><span class="login-led"></span> دسترسی مدیریتی محافظت‌شده</div>
+   <h1 id="login-title">ورود به مرکز صدور گواهی</h1>
+   <p>برای حفاظت از کلیدهای صادرکننده، صدور گواهی فقط پس از ورود مدیر و تأیید دومرحله‌ای انجام می‌شود.</p>
+   <div id="login-notice" class="login-notice hidden" role="alert"></div>
+   <form id="login-form" autocomplete="on">
+    <label for="login-username">نام کاربری</label>
+    <input type="text" id="login-username" name="username" autocomplete="username" value="admin" required maxlength="80" spellcheck="false" dir="ltr">
+    <label for="login-password">رمز عبور مدیر</label>
+    <input type="password" id="login-password" name="password" autocomplete="current-password" required minlength="16" maxlength="1024" dir="ltr">
+    <label for="login-code">کد یک‌بارمصرف برنامه احراز هویت</label>
+    <input type="text" id="login-code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" autocomplete="one-time-code" spellcheck="false" required dir="ltr" placeholder="000000" aria-describedby="login-code-help">
+    <small id="login-code-help">کد ۶ رقمی ۳۰ ثانیه‌ای از برنامه Authenticator؛ ساعت دستگاه باید تنظیم باشد.</small>
+    <button type="submit" id="login-submit">ورود امن به سامانه</button>
+   </form>
+   <p class="login-footnote">اگر مدیر هنوز فعال نشده است، روی خود سرور دستور <code dir="ltr">python3 scripts/setup_admin.py</code> را اجرا کنید. هیچ رمز یا کلید خصوصی را در اختیار دیگران قرار ندهید.</p>
+  </section>
+  <footer class="login-footer">Iran CA Center · Private PKI · ورود فقط از اتصال HTTPS مورد اعتماد</footer>
+ </main>
+</body>
+</html>
