@@ -15,6 +15,8 @@ import argparse
 import getpass
 import os
 import re
+import socket
+import ssl
 import shutil
 import stat
 import subprocess
@@ -232,6 +234,33 @@ def check_health() -> bool:
     return False
 
 
+def private_https_is_healthy(root_cert: Path, domain: str) -> bool:
+    """Check localhost:443 using the real private CA root and SNI, never TLS-insecure."""
+    ctx = ssl.create_default_context(cafile=str(root_cert))
+    for _ in range(12):
+        try:
+            with socket.create_connection(("127.0.0.1", 443), timeout=3) as connection:
+                with ctx.wrap_socket(connection, server_hostname=domain) as secure:
+                    secure.settimeout(3)
+                    secure.sendall(
+                        f"GET /healthz HTTP/1.1\r\nHost: {domain}\r\n"
+                        "Connection: close\r\n\r\n".encode("ascii")
+                    )
+                    response = b""
+                    while len(response) < 8192:
+                        piece = secure.recv(2048)
+                        if not piece:
+                            break
+                        response += piece
+                    if (response.startswith(b"HTTP/1.1 200") or
+                        response.startswith(b"HTTP/2 200")) and b'"status":"ok"' in response:
+                        return True
+        except (OSError, ssl.SSLError, TimeoutError):
+            pass
+        time.sleep(1.5)
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Safe first-run setup for CA-Panel")
     parser.add_argument("--init-ca", action="store_true",
@@ -240,7 +269,11 @@ def main() -> int:
                         help="Prepare only; do not run Docker Compose")
     parser.add_argument("--check", action="store_true",
                         help="Only check prerequisites, configured paths and CA files")
+    parser.add_argument("--private-https", action="store_true",
+                        help="Run API plus private-CA Caddy HTTPS on port 443")
     args = parser.parse_args()
+    if args.init_ca and args.private_https:
+        parser.error("--init-ca and --private-https cannot be combined")
     if args.check and args.init_ca:
         parser.error("--check and --init-ca cannot be combined")
     os.chdir(ROOT)
@@ -322,6 +355,17 @@ def main() -> int:
         return 0
 
     maybe_check_issuer_password(online, filenames[0], secret)
+    if args.private_https:
+        # Fail before launching Docker if the private TLS leaf/key was not imported.
+        from scripts.setup_private_tls import host_path, safe_domain
+        tls_dir = host_path(values.get("PANEL_TLS_HOST_DIR", "./secrets/tls"))
+        safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
+        if not tls_dir.is_dir() or tls_dir.is_symlink() or any(
+            not (tls_dir / name).is_file() or (tls_dir / name).is_symlink()
+            for name in ("fullchain.pem", "privkey.pem")
+        ):
+            fail("Private TLS files missing. Import your one-time ZIP first with: "
+                 "python3 scripts/setup_private_tls.py --zip /path/to/domain-certificates.zip")
     if content != original:
         write_env(content)
         info(".env saved with private permissions (0600); existing values preserved.")
@@ -345,14 +389,32 @@ def main() -> int:
     if not args.no_start:
         check_prerequisites(docker=True, crypto=False)
         info("Building and launching CA-Panel API with Docker Compose...")
-        run("docker", "compose", "up", "-d", "--build", "api")
+        if args.private_https:
+            run("docker", "compose", "--profile", "private-tls", "up", "-d",
+                "--build", "api", "caddy-private")
+        else:
+            run("docker", "compose", "up", "-d", "--build", "api")
         if not check_health():
             fail("Docker launch requested but /healthz is not healthy. "
                  "Run: docker compose ps && docker compose logs --tail=80 api")
-        info("SUCCESS: CA-Panel is healthy at http://127.0.0.1:8080")
+        if args.private_https:
+            from scripts.setup_private_tls import safe_domain
+            domain = safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
+            root = online / filenames[2]
+            if not private_https_is_healthy(root, domain):
+                fail("Port 443 TLS health check failed. Check that the signed "
+                     "certificate covers PANEL_DOMAIN, the port is available, "
+                     "and only one Caddy profile is active. "
+                     "Run: docker compose --profile private-tls logs --tail=80 caddy-private")
+            info(f"SUCCESS: CA-Panel is healthy with your private CA at https://{domain}:443")
+        else:
+            info("SUCCESS: CA-Panel is healthy at http://127.0.0.1:8080")
         info("Public CA metadata: http://127.0.0.1:8080/api/system")
     else:
-        info("Configuration prepared; run: docker compose up -d --build api")
+        if args.private_https:
+            info("Configuration prepared; run: docker compose --profile private-tls up -d --build api caddy-private")
+        else:
+            info("Configuration prepared; run: docker compose up -d --build api")
     return 0
 
 
