@@ -243,8 +243,10 @@ def private_https_is_healthy(root_cert: Path, domain: str) -> bool:
                 with ctx.wrap_socket(connection, server_hostname=domain) as secure:
                     secure.settimeout(3)
                     secure.sendall(
-                        f"GET /healthz HTTP/1.1\r\nHost: {domain}\r\n"
-                        "Connection: close\r\n\r\n".encode("ascii")
+                        (
+                            f"GET /healthz HTTP/1.1\r\nHost: {domain}\r\n"
+                            "Connection: close\r\n\r\n"
+                        ).encode("ascii")
                     )
                     response = b""
                     while len(response) < 8192:
