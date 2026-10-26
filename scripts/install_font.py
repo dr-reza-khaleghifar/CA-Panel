@@ -10,7 +10,8 @@ import hashlib
 import ssl
 import sys
 import urllib.error
-import urllib.request
+from http.client import HTTPSConnection
+from urllib.parse import urlsplit
 from pathlib import Path
 
 UPSTREAM = (
@@ -25,15 +26,32 @@ OUTPUT = Path(__file__).resolve().parents[1] / "app" / "static" / "fonts" / "Vaz
 
 def install_font(source: Path | None = None) -> Path:
     if source is None:
-        # urllib uses the operating system/Python trust configuration.
-        with urllib.request.urlopen(UPSTREAM, timeout=30, context=ssl.create_default_context()) as resp:
-            content = resp.read(EXPECTED_SIZE + 1)
+        # Allow only this pinned HTTPS origin; never follow redirects or load
+        # file:, custom or attacker-controlled URL schemes.
+        parsed = urlsplit(UPSTREAM)
+        if (parsed.scheme != "https" or parsed.hostname != "raw.githubusercontent.com"
+                or parsed.port is not None or parsed.username or parsed.password
+                or parsed.query or parsed.fragment):
+            raise ValueError("Invalid or unexpected pinned font origin")
+        connection = HTTPSConnection("raw.githubusercontent.com", timeout=30,
+                                     context=ssl.create_default_context())
+        try:
+            connection.request("GET", parsed.path)
+            response = connection.getresponse()
+            if response.status != 200:
+                raise ValueError("Font server did not return exact HTTPS 200")
+            content = response.read(EXPECTED_SIZE + 1)
+        finally:
+            connection.close()
     else:
         content = source.read_bytes()
     if len(content) != EXPECTED_SIZE or content[:4] != b"wOF2":
         raise ValueError("Invalid or unexpected Vazirmatn WOFF2 font bytes")
     header = b"blob " + str(len(content)).encode("ascii") + bytes([0])
-    digest = hashlib.sha1(header + content).hexdigest()
+    # Git blob object IDs are historically SHA-1 (a format compatibility check,
+    # not a digital signature); HTTPS and the immutable upstream revision are
+    # separately verified. This SHA-1 use is NOT a password or certificate hash.
+    digest = hashlib.sha1(header + content, usedforsecurity=False).hexdigest()
     if digest != EXPECTED_GIT_BLOB:
         raise ValueError("Vazirmatn font integrity mismatch; file will not be installed")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
