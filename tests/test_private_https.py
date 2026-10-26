@@ -66,7 +66,7 @@ def test_private_tls_caddy_profile_and_manual_certificate_config():
     compose = (root / "compose.yaml").read_text(encoding="utf-8")
     assert 'profiles: ["private-tls"]' in compose
     assert "caddy-private:" in compose
-    assert '"443:443"' in compose
+    assert 'PANEL_TLS_BIND_IP:-0.0.0.0}:443:443' in compose
     assert ":/etc/caddy/tls:ro" in compose
     assert "PANEL_TLS_HOST_DIR" in compose
     assert "secrets/tls" in (root / ".env.example").read_text(encoding="utf-8")
