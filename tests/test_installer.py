@@ -191,19 +191,28 @@ def test_installer_rejects_invalid_new_ca_profile_before_generation(tmp_path, mo
 
 
 
-def test_private_https_requires_leaf_cert_and_key_before_docker(tmp_path, monkeypatch):
+def test_private_https_bootstraps_leaf_locally_and_starts_caddy(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
         "CA_KEY_PASSWORD='knownPassword123'\n"
         "PANEL_DOMAIN=ca1.iravand.ir\n"
         "PANEL_TLS_HOST_DIR=./secrets/tls\n"
     ))
     monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
-    from scripts import setup_private_tls
-    monkeypatch.setattr(setup_private_tls, "ROOT", tmp_path)
-    monkeypatch.setattr(install, "run",
-                        lambda *args, **kwargs: pytest.fail("Do not run Docker before TLS files exist"))
-    with pytest.raises(RuntimeError, match="Private TLS files missing"):
-        install.main()
+    from scripts import issue_panel_tls
+    issuance = []
+    monkeypatch.setattr(issue_panel_tls, "ensure_panel_tls",
+                        lambda root: issuance.append(root) or "issued")
+    commands = []
+    monkeypatch.setattr(install, "run", lambda *args, **kwargs: commands.append(args))
+    monkeypatch.setattr(install, "check_health", lambda: True)
+    monkeypatch.setattr(install, "private_https_is_healthy",
+                        lambda root, domain: True)
+    assert install.main() == 0
+    assert issuance == [tmp_path]
+    assert ("docker", "compose", "--profile", "private-tls", "up", "-d",
+            "--build", "api", "caddy-private") in commands
+    assert ("docker", "compose", "--profile", "private-tls", "restart",
+            "caddy-private") in commands
 
 
 def test_private_https_runs_expected_compose_profile_and_checks_tls(tmp_path, monkeypatch):
@@ -212,12 +221,8 @@ def test_private_https_runs_expected_compose_profile_and_checks_tls(tmp_path, mo
         "PANEL_DOMAIN=ca1.iravand.ir\n"
         "PANEL_TLS_HOST_DIR=./secrets/tls\n"
     ))
-    from scripts import setup_private_tls
-    monkeypatch.setattr(setup_private_tls, "ROOT", tmp_path)
-    tls = tmp_path / "secrets" / "tls"
-    tls.mkdir(mode=0o700)
-    (tls / "fullchain.pem").write_text("test cert placeholder", encoding="utf-8")
-    (tls / "privkey.pem").write_text("test leaf-key placeholder", encoding="utf-8")
+    from scripts import issue_panel_tls
+    monkeypatch.setattr(issue_panel_tls, "ensure_panel_tls", lambda root: "unchanged")
     calls = []
     monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
     monkeypatch.setattr(install, "run", lambda *args, **kwargs: calls.append(args))
@@ -230,3 +235,4 @@ def test_private_https_runs_expected_compose_profile_and_checks_tls(tmp_path, mo
             "--build", "api", "caddy-private") in calls
     assert tls_checks == [(tmp_path / "secrets" / "online" / "root-cert.pem",
                            "ca1.iravand.ir")]
+    assert not any("restart" in command for command in calls)
