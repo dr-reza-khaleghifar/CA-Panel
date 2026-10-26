@@ -76,7 +76,28 @@
   if (brand) brand.addEventListener('click', () => {setOpen(false, false);setActive('overview');});
 
   doc.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && opened) setOpen(false, true);
+    if (!opened) return;
+    if (event.key === 'Escape') {
+      setOpen(false, true);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    // An off-canvas menu should not let keyboard focus escape behind its backdrop.
+    const focusables = Array.from(sidebar.querySelectorAll('a[href], button:not([disabled])'))
+      .filter(element => element.getAttribute('tabindex') !== '-1');
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && doc.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && doc.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    } else if (!sidebar.contains(doc.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
   });
   window.addEventListener('resize', () => {
     if (!mobile() && opened) setOpen(false, false);
