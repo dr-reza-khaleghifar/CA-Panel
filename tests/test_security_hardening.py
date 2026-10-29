@@ -204,3 +204,65 @@ def test_login_bruteforce_lockout_rejects_without_unbounded_audit(secured):
     with sqlite3.connect(settings.db_path) as con:
         after = con.execute("SELECT COUNT(*) FROM security_audit").fetchone()[0]
     assert after == before, "Blocked login requests must not grow the security audit database"
+
+
+def test_all_domains_opt_in_requires_admin_mfa_and_dns_ownership(tmp_path):
+    """A broad domain policy must NOT allow anonymous or proof-free signing."""
+    create_ca(tmp_path / "secret", b"security-root-password-123", b"security-issuer-password-123")
+    seed = new_totp_seed()
+    settings = Settings(
+        db_path=tmp_path / "data" / "ca.db", ca_dir=tmp_path / "secret" / "online",
+        ca_key_password="security-issuer-password-123",
+        admin_password_hash=hash_password("secure-test-password-123456"),
+        admin_totp_secret=seed, admin_session_generation="f" * 64,
+        cert_allowed_domains="", cert_allow_any_domain=True,
+    )
+    api = create_app(settings)
+    api.state.dns_checker = lambda *_: False
+    with TestClient(api, base_url="https://testserver") as client:
+        assert client.post("/api/requests", json={"domain": "other.example.com"}).status_code == 401
+        assert login(client, seed).status_code == 200
+        csrf = client.get("/api/auth/status").json()["csrf_token"]
+        headers = {"X-CSRF-Token": csrf}
+        for invalid in ("127.0.0.1", "*.example.org", "service.internal", "localhost", "one.local"):
+            assert client.post("/api/requests", json={"domain": invalid}, headers=headers).status_code == 422
+        first = client.post("/api/requests", json={"domain": "a.example.org"}, headers=headers)
+        assert first.status_code == 201, first.text
+        rid = first.json()["request_id"]
+        # No certificate may be signed before real DNS TXT proof (even in all-domains mode).
+        assert client.post(f"/api/requests/{rid}/issue-server", headers=headers).status_code == 403
+        assert client.post(f"/api/requests/{rid}/verify", headers=headers).status_code == 422
+        api.state.dns_checker = lambda *_: True
+        assert client.post(f"/api/requests/{rid}/verify", headers=headers).status_code == 200
+        api.state.dns_checker = lambda *_: False
+        assert client.post(f"/api/requests/{rid}/issue-server", headers=headers).status_code == 403
+        api.state.dns_checker = lambda *_: True
+        issued = client.post(f"/api/requests/{rid}/issue-server", headers=headers)
+        assert issued.status_code == 201, issued.text
+        assert issued.json()["domain"] == "a.example.org"
+        # No free-form, unauthenticated download even with the capability URL.
+        client.cookies.clear()
+        assert client.get(issued.json()["download_url"]).status_code == 401
+
+
+def test_all_domains_flag_defaults_off_and_rejects_invalid_configuration(monkeypatch):
+    monkeypatch.delenv("CERT_ALLOW_ANY_DOMAIN", raising=False)
+    assert Settings.from_env().cert_allow_any_domain is False
+    assert domain_permitted("example.org", (), allow_any=False) is False
+    assert domain_permitted("example.org", (), allow_any=True) is True
+    for value in ("true", "yes", "*", "", "2"):
+        monkeypatch.setenv("CERT_ALLOW_ANY_DOMAIN", value)
+        with pytest.raises(ValueError, match="CERT_ALLOW_ANY_DOMAIN"):
+            Settings.from_env()
+    monkeypatch.setenv("CERT_ALLOW_ANY_DOMAIN", "1")
+    assert Settings.from_env().cert_allow_any_domain is True
+    monkeypatch.setenv("CERT_ALLOW_ANY_DOMAIN", "0")
+    assert Settings.from_env().cert_allow_any_domain is False
+
+
+def test_without_all_domains_flag_empty_allowlist_fails_closed(secured):
+    client, settings, seed = secured
+    # The helper is only allowed to relax the issuer boundary with an explicit flag.
+    assert not domain_permitted("some-other.net", (), allow_any=False)
+    assert not domain_permitted("some-other.net", ("iravand.ir",), allow_any=False)
+    assert domain_permitted("deep.other.net", (), allow_any=True)
