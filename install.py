@@ -368,12 +368,18 @@ def main() -> int:
         else:
             info("Existing .env preserved; no password or setting overwritten.")
 
+    if values.get("CERT_ALLOW_ANY_DOMAIN", "0") not in ("0", "1"):
+        fail("CERT_ALLOW_ANY_DOMAIN must be exactly 0 or 1 in .env")
     if not all(values.get(k, "") for k in (
         "ADMIN_PASSWORD_HASH", "ADMIN_TOTP_SECRET", "ADMIN_SESSION_GENERATION"
     )):
         info("SECURITY: administrator MFA is NOT enrolled; sensitive APIs will remain "
              "LOCKED (HTTP 503). Before using the panel run: "
              "python3 scripts/setup_admin.py; then re-run the installer.")
+    elif values.get("CERT_ALLOW_ANY_DOMAIN", "0") == "1":
+        info("SECURITY WARNING: ALL valid public DNS domains are now eligible for "
+             "issuance after ADMIN MFA and mandatory DNS TXT proof. "
+             "CERT_ALLOWED_DOMAINS is not enforced in this mode.")
     elif not values.get("CERT_ALLOWED_DOMAINS", ""):
         info("SECURITY: CERT_ALLOWED_DOMAINS is empty; all certificate issuance "
              "will be DENIED, even for the admin. Review .env before use.")

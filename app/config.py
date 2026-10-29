@@ -11,6 +11,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def env_flag(name: str) -> bool:
+    """Only explicit 0/1 settings are accepted for security-sensitive flags."""
+    value = os.getenv(name, "0")
+    if value not in ("0", "1"):
+        raise ValueError(f"{name} must be 0 or 1")
+    return value == "1"
+
+
 def env_int(name: str, default: int) -> int:
     try:
         return int(os.environ.get(name, str(default)))
@@ -43,6 +51,7 @@ class Settings:
     admin_totp_secret: str = ""
     admin_session_generation: str = ""
     cert_allowed_domains: str = ""
+    cert_allow_any_domain: bool = False
 
     def __post_init__(self) -> None:
         from app.auth import HASH_PATTERN, validate_totp_seed, domain_suffixes
@@ -56,6 +65,8 @@ class Settings:
                 raise ValueError("ADMIN_TOTP_SECRET is malformed; run setup_admin.py")
             if not re.fullmatch(r"[0-9a-f]{64}", self.admin_session_generation):
                 raise ValueError("ADMIN_SESSION_GENERATION is malformed; run setup_admin.py")
+        if type(self.cert_allow_any_domain) is not bool:
+            raise ValueError("CERT_ALLOW_ANY_DOMAIN must be a boolean")
         if self.cert_allowed_domains:
             domain_suffixes(self.cert_allowed_domains)
         limits = {
@@ -115,4 +126,5 @@ class Settings:
             admin_totp_secret=os.getenv("ADMIN_TOTP_SECRET", ""),
             admin_session_generation=os.getenv("ADMIN_SESSION_GENERATION", ""),
             cert_allowed_domains=os.getenv("CERT_ALLOWED_DOMAINS", ""),
+            cert_allow_any_domain=env_flag("CERT_ALLOW_ANY_DOMAIN"),
         )

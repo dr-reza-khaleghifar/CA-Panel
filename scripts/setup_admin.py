@@ -47,16 +47,25 @@ def configure(path: Path, *, rotate: bool) -> None:
     base_domain = values.get("PANEL_DOMAIN", "ca1.iravand.ir")
     proposed = ".".join(base_domain.strip().lower().split(".")[-2:])
     current = values.get("CERT_ALLOWED_DOMAINS", "") if rotate else ""
-    default = current or proposed
-    print("Allowed domains are enforced even for the admin account.")
-    raw = input(f"Allowed certificate domains, comma-separated [{default}]: ").strip() or default
-    validated = ",".join(domain_suffixes(raw))
+    default = ("*" if rotate and values.get("CERT_ALLOW_ANY_DOMAIN") == "1"
+               else current or proposed)
+    print("Certificate domain policy: list allowed suffixes OR type * for ALL valid public DNS domains.")
+    print("ALL-domains mode still requires administrator MFA and per-domain DNS TXT proof.")
+    raw = input(f"Allowed domains (comma-separated) or * [{default}]: ").strip() or default
+    if raw == "*":
+        print("WARNING: certificates can be issued for ANY public DNS hostname with valid DNS proof.")
+        if input("Type ALLOW ANY DOMAIN to confirm: ").strip() != "ALLOW ANY DOMAIN":
+            raise RuntimeError("All-domains mode cancelled; no credentials or settings changed")
+        validated, allow_any = "", "1"
+    else:
+        validated, allow_any = ",".join(domain_suffixes(raw)), "0"
     seed = new_totp_seed()
     generation = secrets.token_hex(32)
     content = assign(content, "ADMIN_PASSWORD_HASH", "'" + stored_hash + "'")
     content = assign(content, "ADMIN_TOTP_SECRET", "'" + seed + "'")
     content = assign(content, "ADMIN_SESSION_GENERATION", "'" + generation + "'")
     content = assign(content, "CERT_ALLOWED_DOMAINS", "'" + validated + "'")
+    content = assign(content, "CERT_ALLOW_ANY_DOMAIN", allow_any)
     write_env(content)
     os.chmod(path, 0o600)
     print("\nAdministrator enrollment saved with permissions 0600.")

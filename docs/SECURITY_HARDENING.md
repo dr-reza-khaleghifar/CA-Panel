@@ -38,7 +38,14 @@ Rotating resets the password/MFA seed and changes session generation; **all old 
 CERT_ALLOWED_DOMAINS='iravand.ir,example.org'
 ```
 
-The issuer accepts only those exact DNS names and subdomains, never visually similar names or unrelated suffixes. **An empty allowlist denies all certificate issuance even for the administrator.** Every approved name **still requires the original DNS TXT proof**, rechecked at signing time. To extend authorized names, edit the secure `.env` through your normal change-control process and recreate the API container.
+With `CERT_ALLOW_ANY_DOMAIN=0` (default), the issuer accepts only the listed exact DNS names or subdomains. **An empty allowlist denies all issuance.** To opt into issuance for **any valid public DNS hostname**, set `CERT_ALLOW_ANY_DOMAIN=1` in the protected `.env`, or type `*` at the administrator-enrollment domain prompt and confirm by typing `ALLOW ANY DOMAIN`. This flag overrides the suffix list when enabled.
+
+```dotenv
+CERT_ALLOWED_DOMAINS=
+CERT_ALLOW_ANY_DOMAIN=1
+```
+
+In all-domains mode **administrator MFA, session/CSRF, rate limits, normal DNS-name validation and mandatory domain-specific DNS TXT ownership proof still apply**; DNS TXT is rechecked at signing time. Reserved/private suffixes, IP addresses and wildcard names remain unsupported. Enabling this for a Root trusted by many clients substantially increases issuance exposure; enable only with an understood abuse policy, restricted administrator access and incident response. To revert, set `CERT_ALLOW_ANY_DOMAIN=0` and configure an explicit `CERT_ALLOWED_DOMAINS` list. Restart/recreate the API to apply settings; never edit or regenerate CA keys for this change.
 
 ### Login, security boundaries, auditing
 

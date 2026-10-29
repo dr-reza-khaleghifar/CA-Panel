@@ -67,8 +67,12 @@ def domain_suffixes(raw: str) -> tuple[str, ...]:
         raise ValueError("CERT_ALLOWED_DOMAINS must specify 1-30 DNS domain suffixes")
     return tuple(dict.fromkeys(parts))
 
-def domain_permitted(domain: str, suffixes: tuple[str, ...]) -> bool:
-    return any(domain == name or domain.endswith("." + name) for name in suffixes)
+def domain_permitted(domain: str, suffixes: tuple[str, ...], *, allow_any: bool = False) -> bool:
+    """Optional admin-approved exception; caller must first normalize DNS names.
+
+    This flag never bypasses authentication, DNS TXT proof or signing checks.
+    """
+    return allow_any or any(domain == name or domain.endswith("." + name) for name in suffixes)
 
 def initialize_auth_db(db: Path) -> None:
     with sqlite3.connect(db, timeout=10) as con:

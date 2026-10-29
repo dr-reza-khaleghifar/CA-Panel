@@ -338,6 +338,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     admin_ready = bool(settings.admin_password_hash and settings.admin_totp_secret
                        and settings.admin_session_generation)
     issuance_domains = domain_suffixes(settings.cert_allowed_domains) if settings.cert_allowed_domains else ()
+    allow_any_domain = settings.cert_allow_any_domain
 
     app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
@@ -461,7 +462,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         # Operator-approved suffix allowlist; DNS TXT proof remains mandatory.
-        if not domain_permitted(domain, issuance_domains):
+        if not domain_permitted(domain, issuance_domains, allow_any=allow_any_domain):
             audit(settings.db_path, "issuance_domain_denied", domain)
             raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
@@ -512,7 +513,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/requests/{rid}/issue", status_code=201)
     def issue_request(rid: str, body: CsrInput):
         row = get_challenge_or_404(rid)
-        if not domain_permitted(row["domain"], issuance_domains):
+        if not domain_permitted(row["domain"], issuance_domains, allow_any=allow_any_domain):
             audit(settings.db_path, "issuance_domain_denied", row["domain"])
             raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
@@ -545,7 +546,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def issue_server_side(rid: str):
         """Create a new RSA private key on server, issue and offer ONE-TIME ZIP download."""
         row = get_challenge_or_404(rid)
-        if not domain_permitted(row["domain"], issuance_domains):
+        if not domain_permitted(row["domain"], issuance_domains, allow_any=allow_any_domain):
             audit(settings.db_path, "issuance_domain_denied", row["domain"])
             raise HTTPException(403, "Domain is not authorized by CERT_ALLOWED_DOMAINS")
         now = int(time.time())
