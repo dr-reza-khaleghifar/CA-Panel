@@ -54,5 +54,7 @@ headers="$(curl --noproxy '*' --silent --show-error -D - -o /dev/null -H "Host: 
 grep -qi '^x-content-type-options: nosniff' <<<"$headers"
 grep -qi '^x-frame-options: DENY' <<<"$headers"
 grep -qi '^content-security-policy:' <<<"$headers"
+grep -qi "img-src https://ca1.iravand.ir" <<<"$headers"
+grep -qi "script-src 'unsafe-inline'" <<<"$headers"
 grep -qi '^cache-control: no-store' <<<"$headers"
 echo "OK: Caddy HTTP serves ONLY GET/HEAD / guide; certificate and all other paths are inaccessible."

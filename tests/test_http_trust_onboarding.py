@@ -30,7 +30,7 @@ def test_http_port_80_serves_only_one_static_guide():
     for forbidden in ("api:8000", "api/", "login.html", "password", "issuer-key.pem",
                       "privkey.pem", "secrets/offline", "/.env"):
         assert forbidden not in block
-    assert "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'" in block
+    assert "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https://{$PANEL_DOMAIN}" in block
     assert "X-Frame-Options" in block
     assert "no-store" in block
     assert "auto_https disable_redirects" in (ROOT / "Caddyfile.private").read_text("utf-8")
@@ -59,6 +59,15 @@ def test_http_page_warns_users_and_cannot_collect_credentials():
     assert "اثر انگشت" in page and "مستقل" in page
     assert "HTTP" in page and "MFA" in page
     assert "Trusted Root Certification Authorities" in page
-    assert re.search(r"<form\b|<input\b|<script\b", page, re.I) is None
+    assert re.search(r"<form\\b|<input\\b", page, re.I) is None
+    assert len(re.findall(r"<script\\b", page, re.I)) == 1
+    assert re.search(r"<script[^>]*\\bsrc=", page, re.I) is None
+    assert "document.documentElement.classList.add('checking')" in page
+    assert "new Image()" in page
+    assert "/static/favicon.svg?trust_probe=" in page
+    assert "image.onload" in page and "image.onerror" in page
+    assert "window.location.replace(https + '/')" in page
+    assert "6500" in page
+    assert "probe-failed" in page
     assert 'http://' not in page
     assert 'certutil -decode' in page  # DER file hash, not misleading PEM file hash.

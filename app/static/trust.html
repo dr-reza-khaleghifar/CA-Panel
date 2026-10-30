@@ -24,7 +24,47 @@ a.button.primary{background:#92bcfd;color:#08172b;border-color:#92bcfd}a.button:
 .snippet{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #34506c;border-radius:9px;background:#0d1c2f;padding:9px 11px;margin:9px 0}.snippet span{font-size:11px;color:#adbeda}.snippet code{color:#d6e7ff;font-size:11px;overflow-wrap:anywhere;unicode-bidi:plaintext}
 footer{color:#99acc5;font-size:11px;text-align:center;padding-top:25px}
 @media(max-width:520px){.shell{width:calc(100% - 24px);padding-top:19px}.brand{margin-bottom:20px}.steps li{gap:9px}a.button{width:100%}.snippet{display:block}.snippet code{display:block;margin-top:4px}h2{font-size:20px}}
+
+/* JavaScript off: guide visible immediately. JavaScript on: lightweight test. */
+#probe-status,#probe-failed-note{display:none}
+.checking #probe-status{display:block;background:#162b43;border:1px solid #3b608b;border-radius:16px;padding:26px 28px;margin:23px 0;color:#cfdef4}
+.checking #probe-status strong{font-size:17px;display:block;margin-bottom:7px}
+.checking #probe-status p{margin:0}
+.checking .warning,.checking .intro,.checking .steps,.checking footer{display:none}
+.probe-failed #probe-failed-note{display:block;margin:14px 0;background:#352d25;color:#ffe2ba;border:1px solid #78604b;border-radius:12px;padding:11px 15px;font-size:12px;line-height:2}
   </style>
+  <script>
+(function () {
+  'use strict';
+  // A browser image-load probe only, not cryptographic certificate validation.
+  // Never send credentials, tokens or private keys from this HTTP page.
+  document.documentElement.classList.add('checking');
+  document.addEventListener('DOMContentLoaded', function () {
+    var https = 'https://' + window.location.hostname;
+    var image = new Image();
+    var done = false;
+    var timeout = window.setTimeout(showGuide, 6500);
+
+    function showGuide() {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeout);
+      document.documentElement.classList.remove('checking');
+      document.documentElement.classList.add('probe-failed');
+    }
+
+    image.onload = function () {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeout);
+      window.location.replace(https + '/');
+    };
+    image.onerror = showGuide;
+    // Query string avoids treating a previously cached asset as a fresh TLS check.
+    image.src = https + '/static/favicon.svg?trust_probe=' + Date.now();
+  });
+}());
+  </script>
 </head>
 <body>
   <main class="shell">
@@ -32,6 +72,11 @@ footer{color:#99acc5;font-size:11px;text-align:center;padding-top:25px}
       <span class="mark" aria-hidden="true">◆</span>
       <span><strong>گواهی دیجیتال ایران</strong><small dir="ltr">IRAN CA CENTER · TRUST SETUP</small></span>
     </header>
+    <section id="probe-status" role="status" aria-live="polite" aria-label="بررسی امکان اتصال امن">
+      <strong>در حال بررسی اتصال امن به سامانه…</strong>
+      <p>مرورگر در حال آزمایش بارگذاری یک تصویر عمومی از HTTPS است. هیچ اطلاعات محرمانه‌ای ارسال نمی‌شود.</p>
+    </section>
+    <div id="probe-failed-note" role="status">آزمون اتصال HTTPS موفق نبود. ممکن است علت آن مورداعتمادنبودن گواهی، اختلال شبکه یا مسدودشدن تصویر باشد. برای اتصال امن، راهنمای زیر را بررسی کنید.</div>
     <div class="warning" role="note"><strong>توجه: این صفحه با HTTP باز شده است.</strong>
       ارتباط این صفحه رمزنگاری و احراز هویت نشده است. اینجا هیچ رمز عبور، کد MFA، اطلاعات حساب یا درخواست صدور گواهی وارد نکنید.</div>
     <section class="intro" aria-labelledby="title">
