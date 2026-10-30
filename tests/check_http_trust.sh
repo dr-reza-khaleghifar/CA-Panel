@@ -14,15 +14,12 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
   -subj "/CN=ca1.iravand.ir" \
   -keyout "$tmp/tls/privkey.pem" \
   -out "$tmp/tls/fullchain.pem" >/dev/null 2>&1
-cp "$tmp/tls/fullchain.pem" "$tmp/root-ca.pem"
 
 docker run -d --name "$container" \
   -e PANEL_DOMAIN=ca1.iravand.ir \
   -p 127.0.0.1:18080:80 \
   -v "$PWD/Caddyfile.private:/etc/caddy/Caddyfile:ro" \
   -v "$PWD/app/static/trust.html:/srv/onboarding/index.html:ro" \
-  -v "$PWD/app/static/trust.css:/srv/onboarding/trust.css:ro" \
-  -v "$tmp/root-ca.pem:/srv/onboarding/root-ca.pem:ro" \
   -v "$tmp/tls:/etc/caddy/tls:ro" \
   caddy:2.10 >/dev/null
 
@@ -38,14 +35,11 @@ for n in {1..35}; do
   sleep .3
 done
 
-for path in / /trust.css /root-ca.pem; do
-  got="$(status "$base$path")"
-  [[ "$got" == 200 ]] || { echo "ERROR: HTTP trust $path -> $got"; exit 1; }
-done
-cert_data="$(curl --noproxy '*' --silent --show-error -H "Host: $host" "$base/root-ca.pem")"
-[[ "$cert_data" == *"BEGIN CERTIFICATE"* ]] || { echo "Root CA public certificate missing"; exit 1; }
-
-for path in /login /api/system /api/requests /api/ca.pem /api/downloads/anything \
+[[ "$(status "$base/")" == 200 ]] || { echo "Guide not available on HTTP root"; exit 1; }
+guide="$(curl --noproxy '*' --silent --show-error -H "Host: $host" "$base/")"
+[[ "$guide" == *"گواهی دیجیتال ایران"* ]] || { echo "Guide HTML missing"; exit 1; }
+[[ "$guide" != *'href="/root-ca.pem"'* ]] || { echo "HTTP guide must not offer downloads"; exit 1; }
+for path in /index.html /trust.css /root-ca.pem /favicon.ico /robots.txt /login /api/system /api/requests /api/ca.pem /api/downloads/anything \
             /static/app.js /.env /secret.key /secrets/online/issuer-key.pem; do
   got="$(status "$base$path")"
   [[ "$got" == 404 ]] || { echo "SECURITY FAILURE: HTTP $path returned $got"; exit 1; }
@@ -61,4 +55,4 @@ grep -qi '^x-content-type-options: nosniff' <<<"$headers"
 grep -qi '^x-frame-options: DENY' <<<"$headers"
 grep -qi '^content-security-policy:' <<<"$headers"
 grep -qi '^cache-control: no-store' <<<"$headers"
-echo "OK: Caddy HTTP onboarding serves only public Root and static instructions; protected routes inaccessible."
+echo "OK: Caddy HTTP serves ONLY GET/HEAD / guide; certificate and all other paths are inaccessible."

@@ -432,7 +432,7 @@ def main() -> int:
                      "and only one Caddy profile is active. "
                      "Run: docker compose --profile private-tls logs --tail=80 caddy-private")
             info(f"SUCCESS: CA-Panel is healthy with your private CA at https://{domain}:443")
-            info(f"PUBLIC TRUST HELP ONLY (no login or API): http://{domain}/")
+            info(f"HTTP GUIDE ONLY (no files, certificates, login or API): http://{domain}/")
             info("Warning: certificate trust must be verified out-of-band before importing Root CA.")
         else:
             info("SUCCESS: CA-Panel is healthy at http://127.0.0.1:8080")

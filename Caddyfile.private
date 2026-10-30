@@ -9,7 +9,7 @@ https://{$PANEL_DOMAIN} {
     reverse_proxy api:8000
 }
 
-# Separate public onboarding endpoint for clients that cannot yet verify our private CA.
+# A SINGLE static trust-help page on HTTP (no certificate, CSS, API or download).
 # HTTP is NEVER a fallback for the login, issuance API, MFA or private ZIPs.
 # Browsers cannot automatically navigate here after a TLS certificate error.
 http://{$PANEL_DOMAIN} {
@@ -18,14 +18,14 @@ http://{$PANEL_DOMAIN} {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "no-referrer"
-        Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     }
 
-    @trust_files {
+    @guide_only {
         method GET HEAD
-        path / /trust.css /root-ca.pem
+        path /
     }
-    handle @trust_files {
+    handle @guide_only {
         root * /srv/onboarding
         file_server
     }

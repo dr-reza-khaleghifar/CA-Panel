@@ -1,24 +1,18 @@
-# Iran CA Center — HTTP trust onboarding without insecure certificate issuance
+# Iran CA Center — راهنمای HTTP فقط در یک صفحه
 
-The private CA HTTPS panel is at **https://ca1.iravand.ir**. An unmanaged browser that does not trust the Pardis Root CA will show a TLS trust warning. **Browsers cannot automatically fall back to HTTP after a certificate-validation failure**; attempting to bypass this through redirects or by disabling TLS validation is not supported.
+مسیر `http://ca1.iravand.ir/` **فقط** صفحه استاتیک راهنمای نصب و تأیید اعتماد به Root CA را نمایش می‌دهد. مرورگرهایی که Root اختصاصی پردیس را نمی‌شناسند ممکن است در HTTPS هشدار بدهند. مرورگر **نمی‌تواند پس از خطای اعتبارسنجی گواهی به‌صورت خودکار و مطمئن به HTTP منتقل شود**؛ کاربر باید آدرس HTTP را دستی باز کند. در حالت HTTPS-Only یا HSTS حتی بازکردن دستی HTTP ممکن است محدود باشد.
 
-A separate, informational landing page is provided at **http://ca1.iravand.ir/** under the private-TLS Caddy profile. Users must navigate there manually (HTTPS-Only mode or cached HSTS may prevent HTTP access). The page explains the trust process and offers the **public Root CA certificate only**, at `http://ca1.iravand.ir/root-ca.pem`.
+## مرزبندی سخت‌گیرانه HTTP
 
-## Security policy: no passwords or signing over HTTP
+روی پورت ۸۰ فقط درخواست‌های `GET /` و `HEAD /` مجاز و دارای پاسخ `200` هستند. HTML و استایل آن در **یک فایل مستقل** قرار دارند.
 
-Port 80 uses a separate Caddy site with an explicit **GET/HEAD-only static allowlist**:
+**هیچ مسیر دیگری روی HTTP فعال نیست**: `/root-ca.pem`، `/trust.css`، `/index.html`، `/login`، `/api/*`، `/static/*` و هر فایل دانلودی پاسخ `404` می‌دهند. فایل گواهی عمومی، Root CA، فایل `.env`، کلید خصوصی و هیچ‌یک از پوشه‌های CA داخل ریشه HTTP مونت نشده‌اند. هیچ reverse proxy به API از پورت ۸۰ وجود ندارد.
 
-- `/` → publicly readable Persian trust guidance
-- `/trust.css` → self-hosted dark styling
-- `/root-ca.pem` → mounted **public Root certificate** file
+صفحه تنها اطلاع‌رسانی می‌کند که کاربر باید **گواهی عمومی Root CA را از مدیر سامانه و از کانالی مستقل و از قبل مورداعتماد** دریافت کند، اثر انگشت SHA-256 را مستقل بررسی کند و سپس با مجوز مالک دستگاه به Root اعتماد کند. روی HTTP هیچ رمز عبور، کد MFA، فرم ورود، API یا صدور گواهی وجود ندارد. هشدار: چون HTTP قابل دست‌کاری در مسیر است، حتی **دستورالعمل همان صفحه** را نباید به‌عنوان منبع تأیید هویت CA در نظر گرفت.
 
-Every other path (including `/login`, `/api/requests`, `/api/system`, `/api/downloads/*`, `.env`, script assets, and any key material) returns HTTP **404**. No reverse proxy to the API exists in the HTTP site. Requests do not transmit admin password, MFA, cookies, issuance challenges, ZIP download capabilities or private keys over HTTP. Protected API and all issuance remain **HTTPS-only** on 443.
+ورود مدیر و صدور گواهی همچنان فقط از `https://ca1.iravand.ir/login` انجام می‌شود.
 
-**Important authenticity limitation:** HTTP content may be intercepted and modified. Never rely on the certificate or SHA-256 fingerprint downloaded or displayed over the same HTTP channel to authenticate the Root. The user must obtain the true Root SHA-256 fingerprint **out of band** from the CA operator, via an already-trusted, authenticated channel, and compare it with the downloaded certificate before granting trust. Installing a private Root extends trust broadly and is a security-sensitive administrative decision. Do not silently import a Root in a browser or OS.
-
-The page includes manual instructions for Firefox, Windows and OpenSSL. Installing trust is not automatic and cannot be made automatic on unmanaged devices without consent.
-
-## Deploy on existing Ubuntu
+## نصب روی Ubuntu موجود
 
 ```bash
 cd ~/CA-Panel
@@ -26,18 +20,20 @@ git pull --ff-only
 bash install.sh --private-https
 ```
 
-The private-TLS profile binds both TCP **443** (protected application) and TCP **80** (public-only trust page) by default. If an existing service occupies port 80 or the firewall restricts it, deployment will fail until that conflict is resolved. Set `PANEL_HTTP_BIND_IP` in the protected `.env` to a chosen **trusted interface IP** if needed; use the external firewall to limit who can access port 80. This is separate from `PANEL_TLS_BIND_IP`.
+سرویس HTTPS پنل روی TCP ۴۴۳ می‌ماند. راهنمای HTTP روی TCP ۸۰ در همان پروفایل Caddy اجرا می‌شود؛ در صورت اشغال‌بودن این پورت، ابتدا تداخل را رفع کنید. `PANEL_HTTP_BIND_IP` می‌تواند این listener را به IP مشخص محدود کند.
+
+برای کنترل صفحه و غیرفعال‌بودن سایر مسیرها:
 
 ```bash
-# From the Ubuntu server; no private TLS bypass required for the HTTP page.
 curl --noproxy '*' -H 'Host: ca1.iravand.ir' -I http://127.0.0.1/
 curl --noproxy '*' -H 'Host: ca1.iravand.ir' -I http://127.0.0.1/root-ca.pem
+curl --noproxy '*' -H 'Host: ca1.iravand.ir' -I http://127.0.0.1/login
 curl --noproxy '*' -H 'Host: ca1.iravand.ir' -I http://127.0.0.1/api/requests
 ```
 
-Expected responses: `200`, `200`, `404`. The last result is deliberately **404**, not an API authentication response, because HTTP has no API proxy.
+انتظار پاسخ به‌ترتیب: **200، 404، 404، 404**.
 
-Confirm HTTPS remains available and authenticates to the privately trusted Root:
+تأیید کنید HTTPS واقعی بدون غیرفعال‌کردن اعتبارسنجی TLS در دسترس است:
 
 ```bash
 curl --noproxy '*' --cacert secrets/online/root-cert.pem \
@@ -45,22 +41,8 @@ curl --noproxy '*' --cacert secrets/online/root-cert.pem \
   https://ca1.iravand.ir/healthz
 ```
 
-The last command should return `{"status":"ok"}`. It verifies HTTPS certificate trust without disabling validation.
+نتیجه مورد انتظار: `{"status":"ok"}`. اگر مرورگر Root را هنوز نمی‌شناسد، گواهی عمومی را از روش امن و مستقل توزیع کنید؛ هرگز Root خصوصی یا Issuing key را منتشر نکنید.
 
-## Out-of-band Root SHA-256 fingerprint
+## تست امنیتی
 
-The CA operator can obtain the **real certificate** fingerprint directly on the Ubuntu server:
-
-```bash
-openssl x509 -in secrets/online/root-cert.pem -noout -fingerprint -sha256
-```
-
-**Do not treat a matching fingerprint shown on an HTTP site as proof of authenticity.** Share the expected value through a separately authenticated channel. The page's Windows instructions decode PEM to DER before applying `certutil -hashfile`, so the hash represents certificate bytes rather than PEM text.
-
-## Automated regression
-
-`tests/test_http_trust_onboarding.py` enforces static-only configuration and user-facing safeguards. `tests/check_http_trust.sh` starts the **real Caddy image** with throwaway test certificates, verifies that GET/HEAD on the three allowlisted public paths works and that protected routes are unreachable on HTTP. No production CA keys are used.
-
-## Browser behavior caveat
-
-Some browsers upgrade HTTP to HTTPS automatically because of HTTPS-Only/HTTPS-First settings or previously learned HSTS. A site cannot reliably detect a failed certificate handshake in JavaScript or force a secure browser to downgrade. In these situations use a **separately trusted administrator channel** to distribute the Root; do not disable browser certificate checking.
+`tests/test_http_trust_onboarding.py` محدودشدن فایل‌ها و مجازبودن فقط `/` را کنترل می‌کند. `tests/check_http_trust.sh` خود Caddy را با گواهی آزمایشی اجرا می‌کند و درخواست‌های واقعی به پورت ۸۰ را می‌سنجد. هیچ داده یا کلید تولیدی پروژه در تست مورد استفاده قرار نمی‌گیرد.

@@ -7,7 +7,24 @@
   <meta name="theme-color" content="#0b1423">
   <meta name="description" content="راهنمای نصب و تأیید گواهی ریشه خصوصی گواهی دیجیتال ایران">
   <title>راهنمای اعتماد به گواهی | گواهی دیجیتال ایران</title>
-  <link rel="stylesheet" href="/trust.css">
+  <style>
+:root{color-scheme:dark;--bg:#0b1423;--surface:#142237;--border:#304760;--text:#edf4ff;--muted:#b1c0d3;--accent:#95beff}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--text);background:radial-gradient(ellipse at 48% -15%,#27476e55,transparent 48%),var(--bg);font-family:Tahoma,"Segoe UI",sans-serif;line-height:2}
+.shell{width:min(100% - 32px,930px);margin:auto;padding:32px 0 46px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:32px}.brand .mark{display:grid;place-items:center;width:50px;height:50px;background:#25466b;border:1px solid #588ac2;border-radius:14px;color:#d1e7ff}.brand strong{display:block;font-size:17px}.brand small{display:block;line-height:1.5;color:#a5c5ec;font-size:10px;letter-spacing:2px}
+.warning{border:1px solid #927451;border-radius:12px;background:#392c24;color:#ffe2bc;padding:14px 18px;font-size:13px;margin-bottom:26px}.warning strong{display:block;color:#fff0d0;font-size:14px}
+.intro{border:1px solid var(--border);background:linear-gradient(135deg,#172b45,#101e32);border-radius:20px;padding:clamp(22px,5vw,40px)}.eyebrow{font-size:11px;letter-spacing:.04em;color:#a2cafa;font-weight:800}
+h1{font-size:clamp(22px,4vw,34px);line-height:1.6;margin:8px 0 16px}h2{font-size:23px;margin:0 0 20px}h3{font-size:17px;line-height:1.7;margin:0 0 7px}
+p{font-size:13px;line-height:2.2;color:var(--muted);margin:8px 0}strong{color:#f7fbff}
+.steps{margin-top:28px;border:1px solid var(--border);background:var(--surface);padding:clamp(18px,4vw,34px);border-radius:20px}
+.steps ol{padding:0;margin:0;list-style:none;display:grid;gap:23px}.steps li{display:flex;align-items:flex-start;gap:14px;padding-bottom:23px;border-bottom:1px solid #2d4159}.steps li:last-child{padding-bottom:0;border:0}
+.index{flex:none;display:grid;place-items:center;width:35px;height:35px;border-radius:10px;color:#d6e9ff;background:#25456b;font-weight:bold}.steps li>div{min-width:0;flex:1}
+a.button{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;text-decoration:none;padding:10px 18px;border:1px solid #4776ac;border-radius:10px;color:#e3f0ff;background:#1d3a5b;font-size:13px;font-weight:bold;min-height:44px}
+a.button.primary{background:#92bcfd;color:#08172b;border-color:#92bcfd}a.button:hover{filter:brightness(1.14)}a:focus-visible{outline:3px solid #cee4ff;outline-offset:3px}
+.snippet{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #34506c;border-radius:9px;background:#0d1c2f;padding:9px 11px;margin:9px 0}.snippet span{font-size:11px;color:#adbeda}.snippet code{color:#d6e7ff;font-size:11px;overflow-wrap:anywhere;unicode-bidi:plaintext}
+footer{color:#99acc5;font-size:11px;text-align:center;padding-top:25px}
+@media(max-width:520px){.shell{width:calc(100% - 24px);padding-top:19px}.brand{margin-bottom:20px}.steps li{gap:9px}a.button{width:100%}.snippet{display:block}.snippet code{display:block;margin-top:4px}h2{font-size:20px}}
+  </style>
 </head>
 <body>
   <main class="shell">
@@ -27,11 +44,10 @@
       <h2 id="steps-title">سه گام برای اتصال امن</h2>
       <ol>
         <li><span class="index">۱</span><div><h3>دریافت گواهی عمومی ریشه</h3>
-          <p>فقط <code>root-ca.pem</code> عمومی قابل دریافت است؛ هیچ کلید خصوصی یا بسته مدیریتی در HTTP ارائه نمی‌شود.</p>
-          <a class="button" href="/root-ca.pem" download="iran-ca-center-root.pem">دریافت گواهی عمومی Root CA</a>
+          <p>گواهی عمومی Root CA را <strong>مستقیماً از مدیر سامانه یا یک کانال مستقل و از قبل مورد اعتماد</strong> دریافت کنید. این سایت روی HTTP هیچ فایل یا گواهی برای دانلود ارائه نمی‌کند.</p>
         </div></li>
         <li><span class="index">۲</span><div><h3>تأیید مستقل اثر انگشت SHA-256</h3>
-          <p>اثر انگشت واقعی گواهی را <strong>از مدیر CA از یک کانال مستقل و معتبر</strong> (مثلاً حضوری یا پیام امضاشده و از قبل مورد اعتماد) دریافت و با فایل دانلودشده مقایسه کنید. اثری که صرفاً روی همین HTTP نمایش داده شود برای اثبات اصالت کافی نیست.</p>
+          <p>اثر انگشت واقعی گواهی را <strong>از مدیر CA و از کانالی مستقل و معتبر</strong> (مثلاً حضوری یا پیام امضاشده از منبعی از قبل مورد اعتماد) دریافت کنید. سپس با فایل دریافتی خودتان مقایسه کنید. به اطلاعات نمایش‌داده‌شده روی HTTP به‌تنهایی برای تشخیص اصالت اعتماد نکنید.</p>
           <div class="snippet"><span>Windows (CMD / PowerShell)</span><code dir="ltr">certutil -decode iran-ca-center-root.pem iran-ca-center-root.cer</code><code dir="ltr">certutil -hashfile iran-ca-center-root.cer SHA256</code></div>
           <div class="snippet"><span>Linux / macOS (OpenSSL)</span><code dir="ltr">openssl x509 -in iran-ca-center-root.pem -noout -fingerprint -sha256</code></div>
         </div></li>
@@ -42,7 +58,7 @@
         </div></li>
       </ol>
     </section>
-    <footer>این صفحه فقط راهنمای اعتماد به گواهی است؛ تمامی عملیات مدیریتی، صدور و دانلود محرمانه صرفاً روی HTTPS انجام می‌شوند.</footer>
+    <footer>این آدرس HTTP فقط یک صفحه راهنما است. هیچ فایل، گواهی یا سرویس دیگری روی HTTP ارائه نمی‌شود؛ تمامی عملیات مدیریتی و صدور گواهی فقط روی HTTPS انجام می‌شوند.</footer>
   </main>
 </body>
 </html>
