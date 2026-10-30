@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0b1423">
+  <meta name="description" content="راهنمای نصب و تأیید گواهی ریشه خصوصی گواهی دیجیتال ایران">
+  <title>راهنمای اعتماد به گواهی | گواهی دیجیتال ایران</title>
+  <link rel="stylesheet" href="/trust.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <span class="mark" aria-hidden="true">◆</span>
+      <span><strong>گواهی دیجیتال ایران</strong><small dir="ltr">IRAN CA CENTER · TRUST SETUP</small></span>
+    </header>
+    <div class="warning" role="note"><strong>توجه: این صفحه با HTTP باز شده است.</strong>
+      ارتباط این صفحه رمزنگاری و احراز هویت نشده است. اینجا هیچ رمز عبور، کد MFA، اطلاعات حساب یا درخواست صدور گواهی وارد نکنید.</div>
+    <section class="intro" aria-labelledby="title">
+      <div class="eyebrow">راهنمای اتصال امن به سامانه</div>
+      <h1 id="title">گواهی امنیتی این سامانه باید مورد اعتماد مرورگر شما باشد.</h1>
+      <p>«گواهی دیجیتال ایران» از یک <strong>Root CA اختصاصی</strong> استفاده می‌کند. اگر مرورگر هشدار «مرجع صادرکننده ناشناخته» نمایش می‌دهد، ممکن است گواهی ریشه هنوز در دستگاه شما مورد اعتماد قرار نگرفته باشد.</p>
+      <p>برای ورود امن، ابتدا هویت گواهی ریشه را از مسیر مستقل تأیید کنید و سپس آن را <strong>فقط با تأیید مدیر یا مالک دستگاه</strong> در مخزن گواهی‌های مورد اعتماد نصب کنید.</p>
+    </section>
+    <section class="steps" aria-labelledby="steps-title">
+      <h2 id="steps-title">سه گام برای اتصال امن</h2>
+      <ol>
+        <li><span class="index">۱</span><div><h3>دریافت گواهی عمومی ریشه</h3>
+          <p>فقط <code>root-ca.pem</code> عمومی قابل دریافت است؛ هیچ کلید خصوصی یا بسته مدیریتی در HTTP ارائه نمی‌شود.</p>
+          <a class="button" href="/root-ca.pem" download="iran-ca-center-root.pem">دریافت گواهی عمومی Root CA</a>
+        </div></li>
+        <li><span class="index">۲</span><div><h3>تأیید مستقل اثر انگشت SHA-256</h3>
+          <p>اثر انگشت واقعی گواهی را <strong>از مدیر CA از یک کانال مستقل و معتبر</strong> (مثلاً حضوری یا پیام امضاشده و از قبل مورد اعتماد) دریافت و با فایل دانلودشده مقایسه کنید. اثری که صرفاً روی همین HTTP نمایش داده شود برای اثبات اصالت کافی نیست.</p>
+          <div class="snippet"><span>Windows PowerShell</span><code dir="ltr">certutil -hashfile iran-ca-center-root.pem SHA256</code></div>
+          <div class="snippet"><span>Linux / macOS (OpenSSL)</span><code dir="ltr">openssl x509 -in iran-ca-center-root.pem -noout -fingerprint -sha256</code></div>
+        </div></li>
+        <li><span class="index">۳</span><div><h3>نصب گواهی و ورود از HTTPS</h3>
+          <p><strong>فایرفاکس:</strong> Settings ← Privacy &amp; Security ← Certificates ← View Certificates ← Authorities ← Import. فایل ریشه را انتخاب کنید و فقط پس از بررسی اثر انگشت تأیید کنید.</p>
+          <p><strong>ویندوز:</strong> با اجازه مالک یا مدیر دستگاه، فایل ریشه را در <code dir="ltr">Trusted Root Certification Authorities</code> نصب کنید. این کار به کل Root CA برای اعتبارسنجی گواهی‌ها اعتماد می‌دهد، نه فقط به همین سایت.</p>
+          <a class="button primary" href="https://ca1.iravand.ir/login">بازگشت به ورود امن HTTPS</a>
+        </div></li>
+      </ol>
+    </section>
+    <footer>این صفحه فقط راهنمای اعتماد به گواهی است؛ تمامی عملیات مدیریتی، صدور و دانلود محرمانه صرفاً روی HTTPS انجام می‌شوند.</footer>
+  </main>
+</body>
+</html>
