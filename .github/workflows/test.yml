@@ -44,3 +44,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify public-only HTTP routing with real Caddy
         run: bash tests/check_http_trust.sh
+      - name: Test simulated browser probe (load, failure and timeout)
+        run: node tests/trust_probe_behavior_check.js
