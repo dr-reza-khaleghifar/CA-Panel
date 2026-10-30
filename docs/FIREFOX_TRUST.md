@@ -8,6 +8,10 @@
 - https://firefox-admin-docs.mozilla.org/reference/policies/certificates/
 - https://firefox-admin-docs.mozilla.org/guides/policies-configuration/
 
+## راهنمای HTTP برای اولین اتصال
+
+اگر به دلیل عدم اعتماد به Root CA نمی‌توانید `https://ca1.iravand.ir` را باز کنید، راهنمای استاتیک و عمومی نصب Root روی **http://ca1.iravand.ir/** قابل مشاهده است (در صورت دسترسی به پورت ۸۰). **این صفحه مخصوص ورود یا صدور گواهی نیست** و هیچ API محرمانه‌ای روی HTTP ارائه نمی‌شود. گواهی Root دریافت‌شده از HTTP باید فقط پس از تطبیق SHA-256 با اثر انگشت دریافتی از مدیر CA از **کانالی مستقل و از قبل مورد اعتماد** نصب شود. انتقال خودکار از شکست TLS به HTTP ممکن نیست؛ در حالت HTTPS-Only یا HSTS، از کانال مستقل مدیریتی برای دریافت Root استفاده کنید.
+
 ## گام ۱: تهیه عمومی Root CA از Ubuntu
 
 روی سرور CA-Panel:

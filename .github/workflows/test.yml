@@ -34,3 +34,13 @@ jobs:
         run: python -m pip_audit -r requirements.txt --strict
       - name: Static security scan of application and operator scripts
         run: bandit -q -r app scripts -ll -ii
+
+  http-trust:
+    name: Real Caddy HTTP trust-only integration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public-only HTTP routing with real Caddy
+        run: bash tests/check_http_trust.sh
