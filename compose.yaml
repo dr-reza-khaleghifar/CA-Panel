@@ -59,11 +59,17 @@ services:
     ports:
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443"
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443/udp"
+      # HTTP provides ONLY static CA trust onboarding; no admin/API reverse proxy.
+      - "${PANEL_HTTP_BIND_IP:-0.0.0.0}:80:80"
     environment:
       PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
     volumes:
       - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
       - ${PANEL_TLS_HOST_DIR:-./secrets/tls}:/etc/caddy/tls:ro
+      # Whitelisted HTTP static files; do not mount .env or the issuer key.
+      - ./app/static/trust.html:/srv/onboarding/index.html:ro
+      - ./app/static/trust.css:/srv/onboarding/trust.css:ro
+      - ${CA_ONLINE_HOST_DIR:-./secrets/online}/${CA_ROOT_CERT_FILE:-root-cert.pem}:/srv/onboarding/root-ca.pem:ro
       - caddy_private_data:/data
       - caddy_private_config:/config
     depends_on:

@@ -32,7 +32,7 @@
         </div></li>
         <li><span class="index">۲</span><div><h3>تأیید مستقل اثر انگشت SHA-256</h3>
           <p>اثر انگشت واقعی گواهی را <strong>از مدیر CA از یک کانال مستقل و معتبر</strong> (مثلاً حضوری یا پیام امضاشده و از قبل مورد اعتماد) دریافت و با فایل دانلودشده مقایسه کنید. اثری که صرفاً روی همین HTTP نمایش داده شود برای اثبات اصالت کافی نیست.</p>
-          <div class="snippet"><span>Windows PowerShell</span><code dir="ltr">certutil -hashfile iran-ca-center-root.pem SHA256</code></div>
+          <div class="snippet"><span>Windows (CMD / PowerShell)</span><code dir="ltr">certutil -decode iran-ca-center-root.pem iran-ca-center-root.cer</code><code dir="ltr">certutil -hashfile iran-ca-center-root.cer SHA256</code></div>
           <div class="snippet"><span>Linux / macOS (OpenSSL)</span><code dir="ltr">openssl x509 -in iran-ca-center-root.pem -noout -fingerprint -sha256</code></div>
         </div></li>
         <li><span class="index">۳</span><div><h3>نصب گواهی و ورود از HTTPS</h3>

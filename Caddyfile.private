@@ -8,3 +8,28 @@ https://{$PANEL_DOMAIN} {
     encode zstd gzip
     reverse_proxy api:8000
 }
+
+# Separate public onboarding endpoint for clients that cannot yet verify our private CA.
+# HTTP is NEVER a fallback for the login, issuance API, MFA or private ZIPs.
+# Browsers cannot automatically navigate here after a TLS certificate error.
+http://{$PANEL_DOMAIN} {
+    header {
+        Cache-Control "no-store"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    }
+
+    @trust_files {
+        method GET HEAD
+        path / /trust.css /root-ca.pem
+    }
+    handle @trust_files {
+        root * /srv/onboarding
+        file_server
+    }
+    handle {
+        respond "Not found. CA login and issuance require HTTPS." 404
+    }
+}
