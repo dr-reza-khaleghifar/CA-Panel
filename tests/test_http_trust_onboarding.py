@@ -59,9 +59,9 @@ def test_http_page_warns_users_and_cannot_collect_credentials():
     assert "اثر انگشت" in page and "مستقل" in page
     assert "HTTP" in page and "MFA" in page
     assert "Trusted Root Certification Authorities" in page
-    assert re.search(r"<form\\b|<input\\b", page, re.I) is None
-    assert len(re.findall(r"<script\\b", page, re.I)) == 1
-    assert re.search(r"<script[^>]*\\bsrc=", page, re.I) is None
+    assert re.search(r"<form\b|<input\b", page, re.I) is None
+    assert len(re.findall(r"<script\b", page, re.I)) == 1
+    assert re.search(r"<script[^>]*\bsrc=", page, re.I) is None
     assert "document.documentElement.classList.add('checking')" in page
     assert "new Image()" in page
     assert "/static/favicon.svg?trust_probe=" in page
