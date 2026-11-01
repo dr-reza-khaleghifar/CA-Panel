@@ -1,80 +1,39 @@
-// Deterministic browser-like smoke tests for HTTP-only HTTPS resource probe.
-// No external HTTP requests, secrets, certificates or production endpoints.
+// Static behavior checks for the local, HTTP-safe trust guide helper.
 'use strict';
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const vm = require('node:vm');
-const html = fs.readFileSync('app/static/trust.html', 'utf8');
-const match = html.match(/<script>\s*([\s\S]*?)<\/script>/i);
-assert.ok(match, 'HTTP guide must include exactly one small inline script');
-const script = match[1];
-assert.equal((html.match(/<script\b/ig) || []).length, 1);
 
-function simulate(event) {
-  const classes = new Set();
-  let onReady;
-  let probe;
-  let alarm;
-  let redirected = null;
-  let cleared = 0;
-  function Image() { probe = this; }
-  const sandbox = {
-    document: {
-      documentElement: {
-        classList: {
-          add(name) { classes.add(name); },
-          remove(name) { classes.delete(name); }
-        }
-      },
-      addEventListener(name, callback) {
-        assert.equal(name, 'DOMContentLoaded');
-        onReady = callback;
-      }
-    },
-    window: {
-      location: {
-        hostname: 'ca1.iravand.ir',
-        replace(url) { redirected = url; }
-      },
-      setTimeout(fn, millis) {
-        assert.equal(millis, 6500);
-        alarm = fn;
-        return 42;
-      },
-      clearTimeout(id) { assert.equal(id, 42); cleared++; }
-    },
-    Image,
-    Date: { now: () => 1590000000000 }
-  };
-  vm.runInNewContext(script, sandbox, { timeout: 2000 });
-  assert.ok(classes.has('checking'), 'Guide must enter checking state');
-  onReady();
-  assert.equal(probe.src, 'https://ca1.iravand.ir/static/favicon.svg?trust_probe=1590000000000');
-  assert.equal(redirected, null);
-  assert.ok(!probe.src.includes('password'));
-  assert.ok(!probe.src.includes('csrf'));
-  if (event === 'load') {
-    probe.onload();
-    assert.equal(redirected, 'https://ca1.iravand.ir/');
-    assert.ok(!classes.has('probe-failed'));
-    alarm(); // late timeout must not replace successful navigation
-    assert.ok(!classes.has('probe-failed'));
-  } else if (event === 'error') {
-    probe.onerror();
-    assert.equal(redirected, null);
-    assert.ok(classes.has('probe-failed'));
-    assert.ok(!classes.has('checking'));
-    probe.onload(); // a delayed late response must never redirect
-    assert.equal(redirected, null);
-  } else if (event === 'timeout') {
-    alarm();
-    assert.equal(redirected, null);
-    assert.ok(classes.has('probe-failed'));
-    assert.ok(!classes.has('checking'));
-    probe.onload();
-    assert.equal(redirected, null);
-  }
-  assert.equal(cleared, 1);
-}
-for (const event of ['load', 'error', 'timeout']) simulate(event);
-console.log('HTTP onboarding probe simulated: HTTPS load redirects; failures/timeout show help.');
+const html = fs.readFileSync('app/static/trust.html', 'utf8');
+const script = fs.readFileSync('app/static/trust.js', 'utf8');
+
+assert.equal((html.match(/<script\b/ig) || []).length, 1,
+  'The guide must load one local helper script');
+assert.match(html, /<script\s+src=["']\/trust\.js["']\s+defer>/i,
+  'The guide must load the local helper, not inline or remote JavaScript');
+assert.doesNotMatch(html, /<script(?!\s+src=)[^>]*>/i,
+  'The guide must not contain inline JavaScript');
+
+assert.match(script, /addEventListener\("input"/,
+  'Platform search must react to input');
+assert.match(script, /querySelectorAll\("\.platform-card"\)/,
+  'Search must target platform guide cards');
+assert.match(script, /data-expand-all/,
+  'The guide must provide expand-all behavior');
+assert.match(script, /data-collapse-all/,
+  'The guide must provide collapse-all behavior');
+assert.match(script, /data-copy-target/,
+  'Copy controls must use explicit target selectors');
+assert.match(script, /navigator\.clipboard\.writeText/,
+  'Copy should use the Clipboard API in secure contexts');
+assert.match(script, /document\.execCommand\("copy"\)/,
+  'Copy should include a fallback for the HTTP bootstrap page');
+
+assert.doesNotMatch(script, /\bfetch\s*\(/,
+  'The helper must not make network requests');
+assert.doesNotMatch(script, /XMLHttpRequest|new Image\s*\(/,
+  'The helper must not probe external resources');
+assert.doesNotMatch(script, /location\.replace|window\.open/,
+  'The helper must not redirect or open external windows');
+
+console.log('Trust guide behavior checks passed: search, accordions, copy fallback and no network probes.');
