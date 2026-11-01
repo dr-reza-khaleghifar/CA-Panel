@@ -191,6 +191,22 @@ def test_installer_rejects_invalid_new_ca_profile_before_generation(tmp_path, mo
 
 
 
+
+def test_write_env_can_target_test_environment_without_touching_live_env(tmp_path, monkeypatch):
+    monkeypatch.setattr(install, "ROOT", tmp_path)
+    monkeypatch.setattr(install, "ENV_FILE", tmp_path / ".env")
+    live = tmp_path / ".env"
+    test_env = tmp_path / ".env.test"
+    live.write_text("CA_KEY_PASSWORD='live-secret-value'\\n", encoding="utf-8")
+    test_env.write_text("CA_KEY_PASSWORD='old-test-secret'\\n", encoding="utf-8")
+
+    install.write_env("CA_KEY_PASSWORD='new-test-secret'\\n", path=test_env)
+
+    assert live.read_text(encoding="utf-8") == "CA_KEY_PASSWORD='live-secret-value'\\n"
+    assert test_env.read_text(encoding="utf-8") == "CA_KEY_PASSWORD='new-test-secret'\\n"
+    assert stat.S_IMODE(test_env.stat().st_mode) == 0o600
+
+
 def test_private_https_bootstraps_leaf_locally_and_starts_caddy(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
         "CA_KEY_PASSWORD='knownPassword123'\n"
