@@ -5,105 +5,319 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#0b1423">
-  <meta name="description" content="راهنمای نصب و تأیید گواهی ریشه خصوصی گواهی دیجیتال ایران">
-  <title>راهنمای اعتماد به گواهی | گواهی دیجیتال ایران</title>
+  <meta name="description" content="راهنمای دریافت، بررسی و نصب گواهی ریشه اختصاصی CA-Panel در سیستم‌عامل‌ها و مرورگرهای مختلف">
+  <title>مرکز راهنمای اعتماد به گواهی | CA-Panel</title>
   <style>
-:root{color-scheme:dark;--bg:#0b1423;--surface:#142237;--border:#304760;--text:#edf4ff;--muted:#b1c0d3;--accent:#95beff}
-*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--text);background:radial-gradient(ellipse at 48% -15%,#27476e55,transparent 48%),var(--bg);font-family:Tahoma,"Segoe UI",sans-serif;line-height:2}
-.shell{width:min(100% - 32px,930px);margin:auto;padding:32px 0 46px}
-.brand{display:flex;align-items:center;gap:12px;margin-bottom:32px}.brand .mark{display:grid;place-items:center;width:50px;height:50px;background:#25466b;border:1px solid #588ac2;border-radius:14px;color:#d1e7ff}.brand strong{display:block;font-size:17px}.brand small{display:block;line-height:1.5;color:#a5c5ec;font-size:10px;letter-spacing:2px}
-.warning{border:1px solid #927451;border-radius:12px;background:#392c24;color:#ffe2bc;padding:14px 18px;font-size:13px;margin-bottom:26px}.warning strong{display:block;color:#fff0d0;font-size:14px}
-.intro{border:1px solid var(--border);background:linear-gradient(135deg,#172b45,#101e32);border-radius:20px;padding:clamp(22px,5vw,40px)}.eyebrow{font-size:11px;letter-spacing:.04em;color:#a2cafa;font-weight:800}
-h1{font-size:clamp(22px,4vw,34px);line-height:1.6;margin:8px 0 16px}h2{font-size:23px;margin:0 0 20px}h3{font-size:17px;line-height:1.7;margin:0 0 7px}
-p{font-size:13px;line-height:2.2;color:var(--muted);margin:8px 0}strong{color:#f7fbff}
-.steps{margin-top:28px;border:1px solid var(--border);background:var(--surface);padding:clamp(18px,4vw,34px);border-radius:20px}
-.steps ol{padding:0;margin:0;list-style:none;display:grid;gap:23px}.steps li{display:flex;align-items:flex-start;gap:14px;padding-bottom:23px;border-bottom:1px solid #2d4159}.steps li:last-child{padding-bottom:0;border:0}
-.index{flex:none;display:grid;place-items:center;width:35px;height:35px;border-radius:10px;color:#d6e9ff;background:#25456b;font-weight:bold}.steps li>div{min-width:0;flex:1}
-a.button{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;text-decoration:none;padding:10px 18px;border:1px solid #4776ac;border-radius:10px;color:#e3f0ff;background:#1d3a5b;font-size:13px;font-weight:bold;min-height:44px}
-a.button.primary{background:#92bcfd;color:#08172b;border-color:#92bcfd}a.button:hover{filter:brightness(1.14)}a:focus-visible{outline:3px solid #cee4ff;outline-offset:3px}
-.snippet{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid #34506c;border-radius:9px;background:#0d1c2f;padding:9px 11px;margin:9px 0}.snippet span{font-size:11px;color:#adbeda}.snippet code{color:#d6e7ff;font-size:11px;overflow-wrap:anywhere;unicode-bidi:plaintext}
-footer{color:#99acc5;font-size:11px;text-align:center;padding-top:25px}
-@media(max-width:520px){.shell{width:calc(100% - 24px);padding-top:19px}.brand{margin-bottom:20px}.steps li{gap:9px}a.button{width:100%}.snippet{display:block}.snippet code{display:block;margin-top:4px}h2{font-size:20px}}
-
-/* JavaScript off: guide visible immediately. JavaScript on: lightweight test. */
-#probe-status,#probe-failed-note{display:none}
-.checking #probe-status{display:block;background:#162b43;border:1px solid #3b608b;border-radius:16px;padding:26px 28px;margin:23px 0;color:#cfdef4}
-.checking #probe-status strong{font-size:17px;display:block;margin-bottom:7px}
-.checking #probe-status p{margin:0}
-.checking .warning,.checking .intro,.checking .steps,.checking footer{display:none}
-.probe-failed #probe-failed-note{display:block;margin:14px 0;background:#352d25;color:#ffe2ba;border:1px solid #78604b;border-radius:12px;padding:11px 15px;font-size:12px;line-height:2}
+    :root{color-scheme:dark;--bg:#0b1423;--surface:#142237;--surface2:#192d46;--border:#304760;--text:#edf4ff;--muted:#b1c0d3;--accent:#95beff;--warning:#ffe2bc;--danger:#ffb6ae;--good:#b8e8cb}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--bg)}
+    body{margin:0;color:var(--text);background:radial-gradient(ellipse at 48% -15%,#27476e55,transparent 48%),var(--bg);font-family:Tahoma,"Segoe UI",sans-serif;line-height:2}
+    a{color:var(--accent);text-underline-offset:4px}
+    a:focus-visible,summary:focus-visible{outline:3px solid #cee4ff;outline-offset:3px;border-radius:6px}
+    .shell{width:min(100% - 30px,1000px);margin:auto;padding:26px 0 48px}
+    .brand{display:flex;align-items:center;gap:13px;margin-bottom:22px}
+    .mark{display:grid;place-items:center;width:48px;height:48px;background:#25466b;border:1px solid #588ac2;border-radius:14px;color:#d1e7ff;font-size:24px}
+    .brand strong{display:block;font-size:17px}.brand small{display:block;line-height:1.5;color:#a5c5ec;font-size:10px;letter-spacing:1.5px}
+    .topnav{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 24px}
+    .topnav a{display:inline-block;padding:6px 11px;border:1px solid var(--border);border-radius:9px;background:#142237;text-decoration:none;font-size:12px}
+    .hero,.panel{border:1px solid var(--border);border-radius:18px;background:linear-gradient(145deg,#172b45,#101e32);padding:clamp(18px,4vw,30px);margin:18px 0}
+    .panel{background:var(--surface)}
+    .eyebrow{font-size:11px;color:#a2cafa;font-weight:800}
+    h1{font-size:clamp(23px,4vw,35px);line-height:1.55;margin:8px 0 12px}
+    h2{font-size:21px;line-height:1.6;margin:0 0 13px}
+    h3{font-size:16px;line-height:1.7;margin:0 0 7px}
+    p{font-size:13px;line-height:2.15;color:var(--muted);margin:8px 0}
+    strong{color:#f7fbff}
+    .notice{border:1px solid #927451;border-radius:12px;background:#392c24;color:var(--warning);padding:13px 16px;margin:15px 0;font-size:13px}
+    .notice strong{display:block;color:#fff0d0;margin-bottom:3px}
+    .notice.danger{border-color:#8b514d;background:#382426;color:#ffd2cd}
+    .notice.info{border-color:#45688d;background:#142b43;color:#d7e8ff}
+    .downloads{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 16px;border:1px solid #4776ac;border-radius:10px;color:#e3f0ff;background:#1d3a5b;text-decoration:none;font-size:13px;font-weight:bold}
+    .button.primary{background:#92bcfd;color:#08172b;border-color:#92bcfd}
+    .button:hover{filter:brightness(1.12)}
+    .fingerprint{direction:ltr;text-align:left;overflow-wrap:anywhere;background:#091728;border:1px solid #34506c;border-radius:10px;padding:13px;color:#d6e7ff;font:600 12px/2.1 ui-monospace,Consolas,monospace}
+    .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:14px}
+    .meta div{background:#0d1c2f;border:1px solid #2b425d;border-radius:10px;padding:10px 12px;min-width:0}
+    .meta span{display:block;color:var(--muted);font-size:11px}.meta strong{display:block;font-size:12px;overflow-wrap:anywhere}
+    .steps{display:grid;gap:10px}
+    details{border:1px solid var(--border);border-radius:12px;background:#101f33;overflow:hidden}
+    summary{cursor:pointer;padding:13px 15px;font-weight:bold;color:#e9f2ff;list-style:none}
+    summary::-webkit-details-marker{display:none}
+    summary:before{content:"＋";display:inline-grid;place-items:center;width:24px;height:24px;margin-left:9px;border-radius:7px;background:#25456b;color:#d6e9ff}
+    details[open] summary:before{content:"−"}
+    .detail-body{padding:0 16px 16px;border-top:1px solid #2d4159}
+    .detail-body ol,.detail-body ul{padding-right:22px;color:var(--muted);font-size:13px;line-height:2.1}
+    .detail-body li{margin:5px 0}
+    code,pre{direction:ltr;text-align:left;unicode-bidi:plaintext}
+    code{display:inline-block;max-width:100%;overflow-wrap:anywhere;background:#091728;border:1px solid #2b425d;border-radius:6px;padding:2px 6px;color:#d6e7ff;font:12px/1.8 ui-monospace,Consolas,monospace}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#091728;border:1px solid #2b425d;border-radius:9px;padding:12px;color:#d6e7ff;font:12px/1.9 ui-monospace,Consolas,monospace}
+    .small{font-size:11px}
+    .footer{color:#99acc5;font-size:11px;text-align:center;padding-top:22px}
+    .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+    .card{border:1px solid var(--border);border-radius:12px;background:#101f33;padding:14px}
+    @media(max-width:560px){.shell{width:calc(100% - 22px);padding-top:16px}.topnav a{font-size:11px}.downloads{display:grid}.button{width:100%}.fingerprint{font-size:10px}h2{font-size:19px}}
   </style>
-  <script>
-(function () {
-  'use strict';
-  // A browser image-load probe only, not cryptographic certificate validation.
-  // Never send credentials, tokens or private keys from this HTTP page.
-  document.documentElement.classList.add('checking');
-  document.addEventListener('DOMContentLoaded', function () {
-    var https = 'https://' + window.location.hostname;
-    var image = new Image();
-    var done = false;
-    var timeout = window.setTimeout(showGuide, 6500);
-
-    function showGuide() {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timeout);
-      document.documentElement.classList.remove('checking');
-      document.documentElement.classList.add('probe-failed');
-    }
-
-    image.onload = function () {
-      if (done) return;
-      done = true;
-      window.clearTimeout(timeout);
-      window.location.replace(https + '/');
-    };
-    image.onerror = showGuide;
-    // Query string avoids treating a previously cached asset as a fresh TLS check.
-    image.src = https + '/static/favicon.svg?trust_probe=' + Date.now();
-  });
-}());
-  </script>
 </head>
 <body>
-  <main class="shell">
-    <header class="brand">
-      <span class="mark" aria-hidden="true">◆</span>
-      <span><strong>گواهی دیجیتال ایران</strong><small dir="ltr">IRAN CA CENTER · TRUST SETUP</small></span>
-    </header>
-    <section id="probe-status" role="status" aria-live="polite" aria-label="بررسی امکان اتصال امن">
-      <strong>در حال بررسی اتصال امن به سامانه…</strong>
-      <p>مرورگر در حال آزمایش بارگذاری یک تصویر عمومی از HTTPS است. هیچ اطلاعات محرمانه‌ای ارسال نمی‌شود.</p>
-    </section>
-    <div id="probe-failed-note" role="status">آزمون اتصال HTTPS موفق نبود. ممکن است علت آن مورداعتمادنبودن گواهی، اختلال شبکه یا مسدودشدن تصویر باشد. برای اتصال امن، راهنمای زیر را بررسی کنید.</div>
-    <div class="warning" role="note"><strong>توجه: این صفحه با HTTP باز شده است.</strong>
-      ارتباط این صفحه رمزنگاری و احراز هویت نشده است. اینجا هیچ رمز عبور، کد MFA، اطلاعات حساب یا درخواست صدور گواهی وارد نکنید.</div>
-    <section class="intro" aria-labelledby="title">
-      <div class="eyebrow">راهنمای اتصال امن به سامانه</div>
-      <h1 id="title">گواهی امنیتی این سامانه باید مورد اعتماد مرورگر شما باشد.</h1>
-      <p>«گواهی دیجیتال ایران» از یک <strong>Root CA اختصاصی</strong> استفاده می‌کند. اگر مرورگر هشدار «مرجع صادرکننده ناشناخته» نمایش می‌دهد، ممکن است گواهی ریشه هنوز در دستگاه شما مورد اعتماد قرار نگرفته باشد.</p>
-      <p>برای ورود امن، ابتدا هویت گواهی ریشه را از مسیر مستقل تأیید کنید و سپس آن را <strong>فقط با تأیید مدیر یا مالک دستگاه</strong> در مخزن گواهی‌های مورد اعتماد نصب کنید.</p>
-    </section>
-    <section class="steps" aria-labelledby="steps-title">
-      <h2 id="steps-title">سه گام برای اتصال امن</h2>
-      <ol>
-        <li><span class="index">۱</span><div><h3>دریافت گواهی عمومی ریشه</h3>
-          <p>گواهی عمومی Root CA را <strong>مستقیماً از مدیر سامانه یا یک کانال مستقل و از قبل مورد اعتماد</strong> دریافت کنید. این سایت روی HTTP هیچ فایل یا گواهی برای دانلود ارائه نمی‌کند.</p>
-        </div></li>
-        <li><span class="index">۲</span><div><h3>تأیید مستقل اثر انگشت SHA-256</h3>
-          <p>اثر انگشت واقعی گواهی را <strong>از مدیر CA و از کانالی مستقل و معتبر</strong> (مثلاً حضوری یا پیام امضاشده از منبعی از قبل مورد اعتماد) دریافت کنید. سپس با فایل دریافتی خودتان مقایسه کنید. به اطلاعات نمایش‌داده‌شده روی HTTP به‌تنهایی برای تشخیص اصالت اعتماد نکنید.</p>
-          <div class="snippet"><span>Windows (CMD / PowerShell)</span><code dir="ltr">certutil -decode iran-ca-center-root.pem iran-ca-center-root.cer</code><code dir="ltr">certutil -hashfile iran-ca-center-root.cer SHA256</code></div>
-          <div class="snippet"><span>Linux / macOS (OpenSSL)</span><code dir="ltr">openssl x509 -in iran-ca-center-root.pem -noout -fingerprint -sha256</code></div>
-        </div></li>
-        <li><span class="index">۳</span><div><h3>نصب گواهی و ورود از HTTPS</h3>
-          <p><strong>فایرفاکس:</strong> Settings ← Privacy &amp; Security ← Certificates ← View Certificates ← Authorities ← Import. فایل ریشه را انتخاب کنید و فقط پس از بررسی اثر انگشت تأیید کنید.</p>
-          <p><strong>ویندوز:</strong> با اجازه مالک یا مدیر دستگاه، فایل ریشه را در <code dir="ltr">Trusted Root Certification Authorities</code> نصب کنید. این کار به کل Root CA برای اعتبارسنجی گواهی‌ها اعتماد می‌دهد، نه فقط به همین سایت.</p>
-          <a class="button primary" href="https://ca1.iravand.ir/login">بازگشت به ورود امن HTTPS</a>
-        </div></li>
-      </ol>
-    </section>
-    <footer>این آدرس HTTP فقط یک صفحه راهنما است. هیچ فایل، گواهی یا سرویس دیگری روی HTTP ارائه نمی‌شود؛ تمامی عملیات مدیریتی و صدور گواهی فقط روی HTTPS انجام می‌شوند.</footer>
-  </main>
+<main class="shell">
+  <header class="brand">
+    <span class="mark" aria-hidden="true">◆</span>
+    <span><strong>مرکز راهنمای اعتماد به گواهی CA-Panel</strong><small dir="ltr">CA-PANEL · ROOT CERTIFICATE TRUST CENTER</small></span>
+  </header>
+
+  <nav class="topnav" aria-label="بخش‌های راهنما">
+    <a href="#download">دانلود گواهی</a>
+    <a href="#verify">بررسی اثر انگشت</a>
+    <a href="#windows">Windows</a>
+    <a href="#apple">Apple</a>
+    <a href="#android">Android</a>
+    <a href="#linux">Linux</a>
+    <a href="#browsers">مرورگرها</a>
+    <a href="#remove">حذف اعتماد</a>
+  </nav>
+
+  <section class="hero">
+    <div class="eyebrow">راهنمای رسمی نصب گواهی ریشه</div>
+    <h1>برای اتصال امن، گواهی ریشه را بررسی و فقط در صورت اعتماد نصب کنید.</h1>
+    <p>این صفحه راهنمای دریافت و نصب گواهی عمومی Root CA سامانه CA-Panel است. روش نصب بسته به سیستم‌عامل، نسخه دستگاه، مرورگر و سیاست‌های سازمانی متفاوت است.</p>
+    <div class="notice danger">
+      <strong>هشدار امنیتی مهم — این یک Root CA خصوصی و آزمایشی است.</strong>
+      نصب آن به دستگاه شما اجازه می‌دهد گواهی‌هایی را که این CA صادر می‌کند معتبر بداند. این اعتماد فقط به سایت CA-Panel محدود نیست. فقط در دستگاهی که مالک یا مدیر مجاز آن هستید و پس از تأیید مستقل اثر انگشت نصب کنید. این Root CA در فهرست عمومی اعتماد مرورگرها قرار ندارد و جایگزین یک CA عمومی مورد اعتماد اینترنت نیست.
+    </div>
+    <p>اگر فقط می‌خواهید سایت را ببینید، لازم نیست این گواهی را نصب کنید. هشدار مرورگر را نادیده نگیرید و اطلاعات ورود را در صفحه‌ای که هشدار گواهی دارد وارد نکنید.</p>
+  </section>
+
+  <section class="panel" id="download">
+    <h2>۱. دریافت گواهی عمومی Root CA</h2>
+    <p>هر دو فایل زیر فقط شامل گواهی عمومی هستند؛ هیچ کلید خصوصی یا رمز عبوری در آن‌ها وجود ندارد.</p>
+    <div class="downloads">
+      <a class="button primary" href="/downloads/ca-panel-root-ca.pem" download>دانلود گواهی PEM</a>
+      <a class="button" href="/downloads/ca-panel-root-ca.cer" download>دانلود گواهی DER / CER</a>
+    </div>
+    <div class="meta">
+      <div><span>نام گواهی</span><strong>CA-Panel Test Root CA</strong></div>
+      <div><span>سازمان</span><strong>Pardis AI Innovation Test Lab</strong></div>
+      <div><span>قالب PEM</span><strong dir="ltr">ca-panel-root-ca.pem</strong></div>
+      <div><span>قالب DER</span><strong dir="ltr">ca-panel-root-ca.cer</strong></div>
+    </div>
+    <p class="small">برای Linux، ChromeOS و بسیاری از ابزارها PEM مناسب است. برای Windows، Android و دستگاه‌های Apple معمولاً فایل CER/DER انتخاب ساده‌تری است؛ پشتیبانی دقیق به نسخه دستگاه بستگی دارد.</p>
+  </section>
+
+  <section class="panel" id="verify">
+    <h2>۲. قبل از نصب، اثر انگشت را مستقل بررسی کنید</h2>
+    <p>دانلود از همین وب‌سایت به‌تنهایی اصالت فایل را ثابت نمی‌کند؛ مخصوصاً اگر صفحه با HTTP باز شده باشد. اثر انگشت زیر را از مدیر CA از یک کانال مستقل و از قبل مورد اعتماد دریافت کنید و با خروجی دستگاه خودتان مقایسه کنید.</p>
+    <div class="fingerprint">C3:A4:F7:93:EB:50:68:4E:3E:98:EB:42:A2:EB:C9:E3:09:DA:56:81:51:1D:EA:AC:E2:B9:C4:72:CF:AE:30:D5</div>
+    <div class="notice info"><strong>مقایسه باید دقیق باشد.</strong> تمام ۳۲ بایت اثر انگشت SHA-256 باید یکسان باشند. اگر حتی یک رقم متفاوت است، فایل را نصب نکنید و آن را به مدیر سامانه گزارش دهید.</div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Windows — PowerShell یا CMD</h3>
+        <p>برای فایل CER با کدگذاری DER:</p>
+        <pre>certutil -hashfile ca-panel-root-ca.cer SHA256</pre>
+      </div>
+      <div class="card">
+        <h3>macOS / Linux — OpenSSL</h3>
+        <p>برای فایل CER با کدگذاری DER:</p>
+        <pre>openssl x509 -inform DER -in ca-panel-root-ca.cer -noout -fingerprint -sha256</pre>
+        <p>برای فایل PEM:</p>
+        <pre>openssl x509 -in ca-panel-root-ca.pem -noout -fingerprint -sha256</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="install">
+    <h2>۳. راهنمای نصب بر اساس سیستم‌عامل و دستگاه</h2>
+    <p>پس از تأیید اثر انگشت، فقط راهنمای مربوط به دستگاه خود را دنبال کنید. نام منوها ممکن است با نسخه سیستم‌عامل یا سازنده دستگاه کمی تفاوت داشته باشد.</p>
+    <div class="steps">
+      <details id="windows">
+        <summary>Windows 11 و Windows 10</summary>
+        <div class="detail-body">
+          <ol>
+            <li>فایل <code>ca-panel-root-ca.cer</code> را دانلود و اثر انگشت آن را با دستور بخش قبل بررسی کنید.</li>
+            <li>برای اعتماد فقط در حساب کاربری فعلی، PowerShell را باز کنید و اجرا کنید:</li>
+          </ol>
+          <pre>certutil -user -addstore Root "$env:USERPROFILE\Downloads\ca-panel-root-ca.cer"</pre>
+          <p>اگر فایل در پوشه Downloads نیست، مسیر را با محل واقعی فایل جایگزین کنید.</p>
+          <p><strong>برای تمام کاربران همین رایانه:</strong> فقط اگر مدیر دستگاه هستید، Terminal یا PowerShell را با گزینه Run as administrator باز کنید و اجرا کنید:</p>
+          <pre>certutil -addstore -f Root "$env:USERPROFILE\Downloads\ca-panel-root-ca.cer"</pre>
+          <p><strong>روش گرافیکی:</strong></p>
+          <ol>
+            <li><code>Win + R</code> را بزنید و <code>mmc</code> را اجرا کنید.</li>
+            <li>از File گزینه Add/Remove Snap-in را باز کنید.</li>
+            <li>Certificates را Add کنید و برای نصب سراسری Computer account و سپس Local computer را انتخاب کنید.</li>
+            <li>به Trusted Root Certification Authorities → Certificates بروید.</li>
+            <li>روی Certificates راست‌کلیک کنید، All Tasks → Import را انتخاب کنید و فایل CER تأییدشده را وارد کنید.</li>
+          </ol>
+          <p>برای فقط حساب فعلی می‌توانید از <code>certmgr.msc</code> استفاده کنید؛ برای مخزن کل رایانه از <code>certlm.msc</code>.</p>
+          <p><strong>مرورگرها:</strong> Chrome و Edge معمولاً از سازوکار اعتماد سیستم استفاده می‌کنند. Firefox ممکن است به واردکردن جداگانه در بخش Authorities نیاز داشته باشد.</p>
+          <p><a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/install/trusted-root-certification-authorities-certificate-store" target="_blank" rel="noopener noreferrer">راهنمای رسمی Microsoft درباره مخزن Trusted Root</a></p>
+        </div>
+      </details>
+
+      <details id="macos">
+        <summary>macOS — MacBook و iMac</summary>
+        <div class="detail-body">
+          <ol>
+            <li>فایل CER یا PEM را دانلود و اثر انگشت را با OpenSSL بررسی کنید.</li>
+            <li>برنامه Keychain Access را از Spotlight باز کنید.</li>
+            <li>برای اعتماد سراسری، زنجیره System را انتخاب کنید؛ برای اعتماد محدود به حساب فعلی، login را انتخاب کنید.</li>
+            <li>از منوی File گزینه Import Items را بزنید و فایل گواهی را وارد کنید. ممکن است رمز مدیر دستگاه درخواست شود.</li>
+            <li>گواهی واردشده را باز کنید، بخش Trust را گسترش دهید و فقط پس از بررسی اثر انگشت، سیاست When using this certificate را روی Always Trust قرار دهید.</li>
+          </ol>
+          <p>روش خط فرمان برای مدیر دستگاه:</p>
+          <pre>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/ca-panel-root-ca.cer</pre>
+          <p>پس از نصب، مرورگر را ببندید و دوباره باز کنید. Safari از مخزن اعتماد سیستم استفاده می‌کند؛ Firefox ممکن است تنظیم جداگانه بخواهد.</p>
+          <p><a href="https://support.apple.com/guide/keychain-access/kyca2431/mac" target="_blank" rel="noopener noreferrer">راهنمای Apple برای افزودن گواهی به Keychain</a></p>
+        </div>
+      </details>
+
+      <details id="ios">
+        <summary>iPhone و iPad — iOS / iPadOS</summary>
+        <div class="detail-body">
+          <ol>
+            <li>با Safari فایل <code>ca-panel-root-ca.cer</code> را دانلود کنید.</li>
+            <li>Settings را باز کنید. اگر گزینه Profile Downloaded نمایش داده شد، آن را انتخاب کنید؛ در غیر این صورت به General → VPN &amp; Device Management بروید و پروفایل دانلودشده را پیدا کنید.</li>
+            <li>جزئیات گواهی را بررسی کنید و فقط در صورت تطبیق اثر انگشت، Install را بزنید.</li>
+            <li>سپس به Settings → General → About → Certificate Trust Settings بروید.</li>
+            <li>در بخش Enable Full Trust for Root Certificates، اعتماد کامل به این Root CA را فعال و پیام تأیید را قبول کنید.</li>
+          </ol>
+          <div class="notice"><strong>مهم در دستگاه‌های Apple</strong>نصب پروفایل به‌تنهایی لزوماً اعتماد SSL را فعال نمی‌کند؛ مرحله Certificate Trust Settings جداگانه لازم است. در دستگاه‌های سازمانی، نصب از طریق MDM یا Apple Configurator را به مدیر فناوری اطلاعات بسپارید.</div>
+          <p><a href="https://support.apple.com/en-us/102390" target="_blank" rel="noopener noreferrer">راهنمای رسمی Apple برای فعال‌کردن Full Trust در iOS و iPadOS</a></p>
+        </div>
+      </details>
+
+      <details id="android">
+        <summary>Android — Pixel، Samsung، Xiaomi و سایر گوشی‌ها</summary>
+        <div class="detail-body">
+          <ol>
+            <li>فایل <code>ca-panel-root-ca.cer</code> را دانلود کنید.</li>
+            <li>Settings → Security &amp; privacy → More security settings → Encryption &amp; credentials را باز کنید. نام منو در گوشی‌های مختلف متفاوت است.</li>
+            <li>Install a certificate را انتخاب کنید و گزینه CA certificate را بزنید؛ فایل را از Downloads انتخاب کنید.</li>
+            <li>در صورت درخواست، PIN، الگو یا رمز قفل دستگاه را وارد کنید و نامی مانند CA-Panel Test Root را ثبت کنید.</li>
+            <li>در بخش Trusted credentials → User می‌توانید وجود گواهی نصب‌شده را بررسی کنید.</li>
+          </ol>
+          <div class="notice danger"><strong>محدودیت مهم Android</strong>در Android 7 و نسخه‌های جدیدتر، برنامه‌هایی که برای API 24 به بالا هدف‌گذاری شده‌اند به‌طور پیش‌فرض فقط به CAهای سیستمی اعتماد می‌کنند؛ بنابراین نصب User CA تضمین نمی‌کند همه اپلیکیشن‌ها آن را بپذیرند. توسعه‌دهنده هر اپ باید در صورت نیاز trust anchor مناسب را در تنظیمات امنیت شبکه برنامه تعریف کند. برنامه‌های دارای certificate pinning نیز ممکن است آن را نپذیرند.</div>
+          <p><a href="https://support.google.com/pixelphone/answer/2844832" target="_blank" rel="noopener noreferrer">راهنمای رسمی Google Pixel برای افزودن و حذف گواهی</a></p>
+          <p><a href="https://developer.android.com/privacy-and-security/security-config" target="_blank" rel="noopener noreferrer">مستندات Android درباره Network Security Configuration و CAهای مورد اعتماد</a></p>
+        </div>
+      </details>
+
+      <details id="linux">
+        <summary>Linux — Ubuntu و Debian</summary>
+        <div class="detail-body">
+          <p>فایل PEM را دانلود کنید و در پوشه Downloads قرار دهید. سپس اجرا کنید:</p>
+          <pre>sudo install -m 0644 ~/Downloads/ca-panel-root-ca.pem /usr/local/share/ca-certificates/ca-panel-root-ca.crt
+sudo update-ca-certificates</pre>
+          <p>برای بررسی گواهی نصب‌شده:</p>
+          <pre>ls -l /etc/ssl/certs | grep ca-panel-root-ca</pre>
+          <p>این روش مخزن اعتماد سیستم را به‌روزرسانی می‌کند. بعضی برنامه‌های Snap یا برنامه‌هایی با مخزن گواهی اختصاصی ممکن است به تنظیم جداگانه نیاز داشته باشند.</p>
+          <p><a href="https://ubuntu.com/server/docs/how-to/security/install-a-root-ca-certificate-in-the-trust-store/" target="_blank" rel="noopener noreferrer">مستندات رسمی Ubuntu برای نصب Root CA</a></p>
+        </div>
+      </details>
+
+      <details id="fedora">
+        <summary>Linux — Fedora، RHEL، Rocky و AlmaLinux</summary>
+        <div class="detail-body">
+          <p>گواهی PEM را به پوشه trust anchors اضافه و مخزن اعتماد را به‌روزرسانی کنید:</p>
+          <pre>sudo install -m 0644 ~/Downloads/ca-panel-root-ca.pem /etc/pki/ca-trust/source/anchors/ca-panel-root-ca.pem
+sudo update-ca-trust extract</pre>
+          <p>اگر دستور <code>update-ca-trust</code> موجود نیست، بسته مدیریت گواهی توزیع خود را نصب کنید.</p>
+        </div>
+      </details>
+
+      <details id="arch">
+        <summary>Linux — Arch و توزیع‌های مبتنی بر Arch</summary>
+        <div class="detail-body">
+          <pre>sudo install -m 0644 ~/Downloads/ca-panel-root-ca.pem /etc/ca-certificates/trust-source/anchors/ca-panel-root-ca.pem
+sudo trust extract-compat</pre>
+          <p>در صورت نبود ابزار <code>trust</code>، بسته <code>p11-kit</code> را از مخزن رسمی توزیع نصب کنید.</p>
+        </div>
+      </details>
+
+      <details id="chromeos">
+        <summary>ChromeOS و Chromebook</summary>
+        <div class="detail-body">
+          <ol>
+            <li>فایل PEM را دانلود کنید؛ در روش مدیریت سازمانی Google، فایل باید PEM باشد و DER پذیرفته نمی‌شود.</li>
+            <li>در نوار آدرس Chrome عبارت <code>chrome://certificate-manager</code> را وارد کنید.</li>
+            <li>بخش Authorities را باز کنید و Import را بزنید.</li>
+            <li>گواهی را انتخاب و فقط گزینه‌های اعتماد مورد نیاز برای شناسایی وب‌سایت‌ها را فعال کنید.</li>
+          </ol>
+          <p>در Chromebookهای تحت مدیریت مدرسه یا سازمان، نصب را از مدیر Google Admin بخواهید؛ مدیر می‌تواند CA را از Devices → Networks → Certificates توزیع کند.</p>
+          <p><a href="https://support.google.com/chrome/a/answer/3505249" target="_blank" rel="noopener noreferrer">راهنمای Google برای تنظیم و توزیع CA در ChromeOS</a></p>
+        </div>
+      </details>
+
+      <details id="browsers">
+        <summary>مرورگرها — Firefox، Chrome، Edge و Safari</summary>
+        <div class="detail-body">
+          <h3>Firefox در Windows، macOS و Linux</h3>
+          <ol>
+            <li>Settings → Privacy &amp; Security → Certificates → View Certificates را باز کنید.</li>
+            <li>در زبانه Authorities گزینه Import را بزنید.</li>
+            <li>فایل PEM یا CER تأییدشده را انتخاب کنید.</li>
+            <li>گزینه Trust this CA to identify websites را فقط پس از تأیید اثر انگشت فعال کنید.</li>
+          </ol>
+          <p>در بعضی نسخه‌ها می‌توانید استفاده از گواهی‌های اعتمادشده سیستم را فعال کنید؛ رفتار Firefox به نسخه و سیاست‌های سازمانی بستگی دارد.</p>
+          <h3>Chrome و Edge</h3>
+          <p>در Windows و macOS معمولاً از مخزن اعتماد سیستم‌عامل استفاده می‌کنند. در Linux و ChromeOS، روش نصب به توزیع و سیاست مرورگر بستگی دارد. اگر پس از نصب هنوز خطای ناشناخته‌بودن صادرکننده می‌بینید، مخزن گواهی خود مرورگر را بررسی کنید.</p>
+          <h3>Safari</h3>
+          <p>Safari در دستگاه‌های Apple از زنجیره اعتماد سیستم استفاده می‌کند. نصب و فعال‌سازی اعتماد را از طریق Keychain در macOS یا Certificate Trust Settings در iOS/iPadOS انجام دهید.</p>
+          <p><a href="https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox" target="_blank" rel="noopener noreferrer">راهنمای Mozilla برای مدیریت CAها در Firefox</a></p>
+        </div>
+      </details>
+
+      <details id="java">
+        <summary>Java و برنامه‌های دارای مخزن گواهی اختصاصی</summary>
+        <div class="detail-body">
+          <p>برخی برنامه‌ها از مخزن اعتماد سیستم‌عامل استفاده نمی‌کنند. برای یک truststore اختصاصی Java می‌توانید اجرا کنید:</p>
+          <pre>keytool -importcert -alias ca-panel-root -file ca-panel-root-ca.cer -keystore ca-panel-truststore.p12 -storetype PKCS12</pre>
+          <p>رمز را در پاسخ به prompt وارد کنید و اثر انگشت نمایش‌داده‌شده را با مقدار تأییدشده مقایسه کنید. سپس برنامه را با truststore ساخته‌شده پیکربندی کنید. از تغییر سراسری فایل cacerts جاوا بدون هماهنگی مدیر سیستم خودداری کنید.</p>
+        </div>
+      </details>
+
+      <details id="other">
+        <summary>تلویزیون هوشمند، کنسول بازی، روتر و دستگاه‌های IoT</summary>
+        <div class="detail-body">
+          <p>برای این دستگاه‌ها روش عمومی و یکسانی وجود ندارد. بسیاری از آن‌ها نصب Root CA سفارشی را پشتیبانی نمی‌کنند یا فقط گواهی‌های از پیش نصب‌شده را می‌پذیرند. فقط مستندات سازنده همان مدل و نسخه را دنبال کنید؛ هرگز فایل یا گواهی را با روش‌های غیررسمی روی دستگاه نصب نکنید.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel" id="test">
+    <h2>۴. پس از نصب، اتصال را آزمایش کنید</h2>
+    <p>مرورگر را کاملاً ببندید و دوباره باز کنید. سپس نشانی HTTPS پنل را وارد کنید. نباید هشدار ناشناخته‌بودن صادرکننده یا نام دامنه مشاهده شود.</p>
+    <div class="notice info"><strong>هشدار را دور نزنید.</strong> از گزینه‌هایی مانند Proceed anyway، Continue to site یا غیرفعال‌کردن بررسی TLS برای استفاده روزمره استفاده نکنید. اگر خطا باقی ماند، ابتدا تاریخ و ساعت دستگاه، نام دامنه، نصب Root CA و زنجیره گواهی را بررسی کنید.</div>
+    <a class="button primary" href="https://ca1.iravand.ir/login">رفتن به پنل امن CA-Panel</a>
+  </section>
+
+  <section class="panel" id="remove">
+    <h2>۵. چگونه اعتماد را حذف کنیم؟</h2>
+    <ul>
+      <li><strong>Windows:</strong> در certmgr.msc یا certlm.msc به Trusted Root Certification Authorities → Certificates بروید و فقط گواهی CA-Panel را که اثر انگشت آن با مقدار همین صفحه تطبیق دارد حذف کنید.</li>
+      <li><strong>macOS:</strong> Keychain Access را باز کنید، گواهی CA-Panel را در keychain مربوطه پیدا و حذف کنید.</li>
+      <li><strong>iPhone / iPad:</strong> پروفایل مربوط به CA-Panel را از VPN &amp; Device Management حذف کنید و در صورت نیاز Full Trust را خاموش کنید.</li>
+      <li><strong>Android:</strong> در Encryption &amp; credentials بخش User credentials گواهی CA-Panel را انتخاب و حذف کنید.</li>
+      <li><strong>Ubuntu / Debian:</strong> فایل را از /usr/local/share/ca-certificates حذف و سپس <code>sudo update-ca-certificates --fresh</code> اجرا کنید.</li>
+      <li><strong>Fedora / RHEL:</strong> فایل را از /etc/pki/ca-trust/source/anchors حذف و <code>sudo update-ca-trust extract</code> اجرا کنید.</li>
+      <li><strong>Arch:</strong> فایل را از trust-source/anchors حذف و <code>sudo trust extract-compat</code> اجرا کنید.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>سؤالات متداول</h2>
+    <div class="steps">
+      <details><summary>آیا نصب این گواهی باعث می‌شود همه وب‌سایت‌های اینترنت معتبر شوند؟</summary><div class="detail-body"><p>خیر. این گواهی فقط زنجیره‌هایی را معتبر می‌کند که به همین Root CA ختم شوند. وب‌سایت‌هایی که از CAهای عمومی دیگر گواهی دارند از این نصب سودی نمی‌برند.</p></div></details>
+      <details><summary>آیا این CA به‌صورت پیش‌فرض در Chrome، Firefox یا Safari معتبر است؟</summary><div class="detail-body"><p>خیر. این CA خصوصی و آزمایشی است و عضو مخازن عمومی اعتماد مرورگرها نیست. برای اعتماد باید آن را به‌صورت آگاهانه در دستگاه یا مرورگر نصب کنید.</p></div></details>
+      <details><summary>چرا بعد از نصب، بعضی برنامه‌های Android هنوز خطا می‌دهند؟</summary><div class="detail-body"><p>برنامه‌های جدید Android به‌طور پیش‌فرض ممکن است به گواهی‌های نصب‌شده توسط کاربر اعتماد نکنند. توسعه‌دهنده برنامه باید trust anchor را صریحاً پیکربندی کند؛ certificate pinning نیز می‌تواند مانع اتصال شود.</p></div></details>
+      <details><summary>آیا می‌توانم این گواهی را روی دستگاه شرکت یا شخص دیگری نصب کنم؟</summary><div class="detail-body"><p>فقط با مجوز صریح مالک یا مدیر مجاز دستگاه و پس از تأیید اثر انگشت از کانال مستقل. نصب Root CA روی دستگاه دیگران بدون رضایت و اطلاع کامل آن‌ها مناسب نیست.</p></div></details>
+    </div>
+  </section>
+
+  <footer class="footer">
+    این صفحه راهنمای نصب یک Root CA خصوصی و آزمایشی است؛ نصب آن اختیاری است و به معنی تأیید عمومی CA-Panel یا عضویت در برنامه‌های اعتماد عمومی مرورگرها نیست.
+  </footer>
+</main>
 </body>
 </html>
