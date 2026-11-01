@@ -1,0 +1,10 @@
+{
+    # Test-only HTTPS endpoint. No public ACME automation and no HTTP listener.
+    auto_https disable_redirects
+}
+
+https://{$PANEL_DOMAIN}:8443 {
+    tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem
+    encode zstd gzip
+    reverse_proxy api:8000
+}
