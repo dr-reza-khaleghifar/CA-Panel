@@ -712,6 +712,239 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
+  
+    /* Visual refinement: calmer surfaces, clearer hierarchy and more readable type. */
+    :root {
+      --radius: 19px;
+      --line: rgba(112, 158, 215, .22);
+      --line-strong: rgba(101, 174, 255, .48);
+      --shadow: 0 16px 42px rgba(0, 0, 0, .2);
+    }
+    body {
+      font-size: 14px;
+      line-height: 1.9;
+      background:
+        radial-gradient(ellipse at 8% 8%, rgba(48, 73, 170, .16), transparent 30rem),
+        radial-gradient(ellipse at 95% 24%, rgba(0, 110, 210, .12), transparent 34rem),
+        linear-gradient(155deg, #08152b 0%, #071329 58%, #091831 100%);
+    }
+    .shell { width: min(1080px, calc(100% - 48px)); padding: 22px 0 42px; }
+    .site-header { padding: 8px 0 15px; }
+    .quick-nav {
+      gap: 7px;
+      padding: 10px 0;
+      margin-bottom: 15px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .quick-nav::-webkit-scrollbar { display: none; }
+    .quick-nav a { flex: 0 0 auto; padding: 7px 12px; font-size: 12px; }
+    .hero {
+      min-height: 320px;
+      gap: 22px;
+      padding: clamp(26px, 4vw, 42px);
+      border-radius: 25px;
+      box-shadow: 0 18px 48px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.06);
+    }
+    h1 { font-size: clamp(29px, 3.6vw, 40px); line-height: 1.48; }
+    .hero-copy > p { font-size: 14px; line-height: 2.05; }
+    .hero-art svg { width: min(100%, 350px); }
+    .trust-pills { gap: 8px; margin-top: 18px; }
+    .trust-pill { padding: 7px 10px; font-size: 11px; }
+    .section { margin-top: 17px; }
+    .surface {
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,.14), inset 0 1px rgba(255,255,255,.035);
+    }
+    .download-panel {
+      grid-template-columns: minmax(250px, .8fr) minmax(0, 1.7fr);
+      gap: 23px;
+      padding: 23px;
+    }
+    .download-intro { padding-right: 7px; }
+    .download-intro h2 { font-size: clamp(19px, 2.1vw, 23px); line-height: 1.65; }
+    .download-intro p { font-size: 13px; line-height: 2; }
+    .download-note { font-size: 11px !important; }
+    .download-cards { gap: 12px; }
+    .download-card { padding: 17px; border-radius: 16px; }
+    .file-head { gap: 11px; }
+    .file-head h3 { font-size: 13px; }
+    .file-head p { font-size: 11px; line-height: 1.8; }
+    .download-link { min-height: 45px; font-size: 11px; }
+    .notice { padding: 16px 18px; border-radius: 15px; }
+    .notice strong { font-size: 13px; }
+    .notice p { font-size: 12px; line-height: 1.95; }
+    .journey { padding: 12px; }
+    .journey-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .journey-step {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 72px;
+      padding: 11px 12px;
+      color: #e8f3ff;
+      text-align: right;
+      text-decoration: none;
+      border-radius: 13px;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease;
+    }
+    .journey-step:hover {
+      color: #fff;
+      border-color: rgba(102, 179, 255, .62);
+      background: rgba(26, 67, 117, .88);
+      transform: translateY(-2px);
+    }
+    .journey-step:not(:last-child)::after { display: none; }
+    .journey-icon {
+      flex: 0 0 41px;
+      width: 41px;
+      height: 41px;
+      margin: 0;
+    }
+    .journey-icon .count { width: 19px; height: 19px; font-size: 9px; }
+    .journey-copy { display: block; min-width: 0; }
+    .journey-step strong { margin: 0; font-size: 12px; line-height: 1.6; }
+    .journey-step p { margin: 2px 0 0; color: #9fb8d8; font-size: 10px; line-height: 1.55; }
+    .panel { padding: clamp(19px, 2.7vw, 27px); }
+    .panel-header { gap: 13px; margin-bottom: 17px; }
+    .panel-header h2 { font-size: 19px; line-height: 1.55; }
+    .panel-header p { font-size: 12px; line-height: 1.85; }
+    .fingerprint-box { padding: 18px; }
+    .fingerprint-top strong { font-size: 13px; }
+    .fingerprint-value { font-size: clamp(11px, 1.15vw, 13px); line-height: 2.1; }
+    .copy-btn { min-height: 37px; padding: 7px 12px; font-size: 11px; }
+    .copy-status { font-size: 11px; }
+    .verify-grid { gap: 14px; margin-top: 15px; }
+    .terminal-card { padding: 16px; border-radius: 14px; }
+    .terminal-title strong { font-size: 13px; }
+    .terminal-card p { font-size: 12px; }
+    pre { padding: 13px; font-size: 12px; line-height: 1.85; }
+    code { font-size: 11.5px; }
+    .meta > div { padding: 11px 13px; }
+    .meta span { font-size: 11px; }
+    .meta strong { font-size: 12px; }
+    .platform-tools { margin: 16px 0; }
+    .search-input { min-height: 46px; font-size: 13px; }
+    .tool-btn { min-height: 42px; padding: 8px 13px; font-size: 11px; }
+    .platform-grid { gap: 11px; }
+    .platform-card { border-radius: 14px; }
+    .platform-card summary { min-height: 64px; padding: 11px 14px; font-size: 13px; }
+    .platform-name small { font-size: 10px; }
+    .platform-symbol { flex-basis: 38px; width: 38px; height: 38px; }
+    .detail-body { padding: 2px 17px 17px; }
+    .detail-body p, .detail-body li { font-size: 12.5px; line-height: 2; }
+    .detail-body h3 { font-size: 13px; }
+    .detail-body a { font-size: 11px; }
+    .empty-state { font-size: 12px; }
+    .test-panel { padding: 24px; }
+    .test-copy h2 { font-size: 19px; }
+    .test-copy p { font-size: 13px; line-height: 2; }
+    .button-primary { min-height: 45px; font-size: 12px; }
+    .remove-panel { grid-template-columns: 82px minmax(0,1fr); }
+    .remove-art { width: 76px; height: 76px; border-radius: 20px; }
+    .remove-copy h2 { font-size: 18px; }
+    .remove-copy p { font-size: 12.5px; line-height: 1.95; }
+    .remove-list { gap: 8px 24px; }
+    .remove-list li { font-size: 12px; line-height: 2; }
+    .optional-mark { font-size: 12px; }
+    .optional-label {
+      display: inline-flex;
+      vertical-align: middle;
+      margin-right: 6px;
+      padding: 2px 8px;
+      color: #c7d9f0;
+      border: 1px solid rgba(133, 166, 207, .28);
+      border-radius: 999px;
+      background: rgba(104, 137, 180, .12);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .faq-list { gap: 9px; }
+    .faq-list summary { padding: 14px 15px; font-size: 12.5px; line-height: 1.7; }
+    .faq-answer p { font-size: 12px; line-height: 2; }
+    .final-note { padding: 17px 20px; }
+    .final-note strong { font-size: 13px; }
+    .final-note p { font-size: 11.5px; line-height: 1.9; }
+    .footer { padding-top: 24px; font-size: 11px; }
+
+    @media (max-width: 900px) {
+      .shell { width: min(100% - 36px, 820px); }
+      .hero { grid-template-columns: minmax(0, 1.1fr) minmax(210px, .8fr); }
+      .journey-step { padding-inline: 9px; }
+      .journey-step strong { font-size: 11px; }
+    }
+    @media (max-width: 700px) {
+      .shell { width: calc(100% - 24px); padding-top: 12px; }
+      .site-header { align-items: center; gap: 10px; }
+      .brand-mark { width: 41px; height: 41px; }
+      .brand-copy strong { font-size: 12px; }
+      .brand-copy small { font-size: 8px; }
+      .header-actions { flex-direction: row; align-items: center; }
+      .domain-pill { min-height: 34px; padding: 6px 9px; font-size: 9px; }
+      .quick-nav { gap: 5px; padding: 9px 0; }
+      .quick-nav a { padding: 7px 10px; font-size: 10px; }
+      .hero { grid-template-columns: 1fr; gap: 3px; padding: 20px 18px 23px; }
+      .hero-art { grid-row: 1; max-height: 165px; }
+      .hero-art svg { width: min(58%, 220px); max-height: 165px; }
+      .hero-copy { grid-row: 2; }
+      h1 { margin-top: 10px; font-size: clamp(25px, 6.6vw, 33px); }
+      .hero-copy > p { font-size: 12.5px; }
+      .trust-pills { margin-top: 14px; }
+      .trust-pill { font-size: 10px; }
+      .download-panel { grid-template-columns: 1fr; gap: 14px; padding: 17px; }
+      .download-intro { padding: 0 0 13px; border-left: 0; border-bottom: 1px solid rgba(103, 165, 242, .2); }
+      .download-intro h2 { font-size: 19px; }
+      .download-intro p { font-size: 12px; }
+      .download-cards { gap: 9px; }
+      .download-card { padding: 13px; }
+      .file-head h3 { font-size: 12px; }
+      .file-head p { font-size: 10px; }
+      .download-link { min-height: 42px; font-size: 10px; }
+      .notice { padding: 13px; gap: 10px; }
+      .notice p { font-size: 11px; }
+      .journey-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .journey-step { min-height: 67px; padding: 9px; }
+      .journey-icon { flex-basis: 36px; width: 36px; height: 36px; }
+      .journey-step strong { font-size: 11px; }
+      .journey-step p { font-size: 9px; }
+      .panel { padding: 16px; }
+      .panel-header h2 { font-size: 16px; }
+      .panel-header p { font-size: 11px; }
+      .download-mini-grid, .verify-grid, .platform-grid { grid-template-columns: 1fr; }
+      .platform-tools { align-items: stretch; flex-direction: column; }
+      .search-wrap { max-width: none; }
+      .tool-actions { justify-content: flex-start; }
+      .platform-card summary { min-height: 60px; }
+      .detail-body p, .detail-body li { font-size: 12px; }
+      .test-panel { grid-template-columns: 1fr; gap: 4px; text-align: center; }
+      .test-art svg { width: 145px; max-height: 125px; }
+      .test-copy h2 { font-size: 16px; }
+      .remove-panel { grid-template-columns: 60px minmax(0,1fr); gap: 10px; }
+      .remove-art { width: 56px; height: 56px; border-radius: 15px; }
+      .remove-art .icon { width: 29px; height: 29px; }
+      .remove-list { grid-template-columns: 1fr; gap: 4px; }
+      .faq-answer { padding: 0 15px 13px; }
+      .final-note { align-items: flex-start; padding: 14px; }
+      .footer { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+    @media (max-width: 440px) {
+      .shell { width: calc(100% - 18px); }
+      .brand { gap: 7px; }
+      .brand-copy strong { font-size: 10.5px; }
+      .brand-copy small { font-size: 7px; letter-spacing: .5px; }
+      .domain-pill { padding: 5px 7px; font-size: 8px; }
+      .download-cards { grid-template-columns: 1fr; }
+      .journey-grid { grid-template-columns: 1fr; }
+      .journey-step { min-height: 59px; }
+      .fingerprint-top { align-items: flex-start; flex-direction: column; }
+      .fingerprint-value { font-size: 10px; }
+      .copy-row { align-items: center; flex-direction: row; }
+      .meta { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .section-icon { width: 37px; height: 37px; flex-basis: 37px; }
+      .section-number { width: 29px; height: 29px; flex-basis: 29px; }
+    }
+
   </style>
 </head>
 <body>
@@ -807,7 +1040,7 @@
   <section class="section surface download-panel" id="download" aria-labelledby="download-title">
     <div class="download-intro">
       <div class="eyebrow">دانلود مستقیم و امن</div>
-      <h2 id="download-title">دانلود گواهی عمومی ریشه (Root CA)</h2>
+      <h2 id="download-title">مرحله ۱: دریافت گواهی عمومی ریشه (Root CA)</h2>
       <p>گواهی عمومی ریشه CA-Panel را با فرمت مناسب دریافت کنید و سپس طبق مراحل زیر روی دستگاه خود نصب کنید.</p>
       <p class="download-note">این فایل‌ها فقط گواهی عمومی هستند؛ کلید خصوصی در آن‌ها وجود ندارد.</p>
     </div>
@@ -837,32 +1070,26 @@
     </div>
   </aside>
 
-  <section class="section surface journey" aria-labelledby="journey-title">
-    <div class="section-heading">
-      <div class="section-title-wrap">
-        <span class="section-icon"><svg class="icon lg"><use href="#i-shield"></use></svg></span>
-        <div><h2 id="journey-title">راهنمای گام‌به‌گام راه‌اندازی و اعتماد</h2><p>در پنج مرحله ساده، گواهی ریشه را دریافت، بررسی، نصب و اتصال خود را آزمایش کنید.</p></div>
-      </div>
-    </div>
+  <nav class="section surface journey" aria-label="مسیر نصب گواهی">
     <div class="journey-grid">
-      <div class="journey-step"><span class="journey-icon"><span class="count">۱</span><svg class="icon lg"><use href="#i-download"></use></svg></span><strong>دانلود گواهی ریشه</strong><p>فایل PEM یا CER را از لینک‌های بالا دریافت کنید.</p></div>
-      <div class="journey-step"><span class="journey-icon"><span class="count">۲</span><svg class="icon lg"><use href="#i-fingerprint"></use></svg></span><strong>بررسی اثر انگشت</strong><p>اثر انگشت SHA-256 را با مقدار رسمی مقایسه کنید.</p></div>
-      <div class="journey-step"><span class="journey-icon"><span class="count">۳</span><svg class="icon lg"><use href="#i-monitor"></use></svg></span><strong>انتخاب راهنمای دستگاه</strong><p>دستورالعمل مناسب سیستم‌عامل خود را دنبال کنید.</p></div>
-      <div class="journey-step"><span class="journey-icon"><span class="count">۴</span><svg class="icon lg"><use href="#i-shield"></use></svg></span><strong>نصب و آزمایش اتصال</strong><p>اعتماد را نصب و اتصال امن به پنل را بررسی کنید.</p></div>
-      <div class="journey-step"><span class="journey-icon"><span class="count">۵</span><svg class="icon lg"><use href="#i-trash"></use></svg></span><strong>حذف اعتماد</strong><p>در صورت عدم نیاز، اعتماد را از دستگاه حذف کنید.</p></div>
+      <a class="journey-step" href="#download">
+        <span class="journey-icon"><span class="count">۱</span><svg class="icon"><use href="#i-download"></use></svg></span>
+        <span class="journey-copy"><strong>دریافت گواهی</strong><p>انتخاب PEM یا CER</p></span>
+      </a>
+      <a class="journey-step" href="#verify">
+        <span class="journey-icon"><span class="count">۲</span><svg class="icon"><use href="#i-fingerprint"></use></svg></span>
+        <span class="journey-copy"><strong>بررسی اثر انگشت</strong><p>تطبیق SHA-256</p></span>
+      </a>
+      <a class="journey-step" href="#platforms">
+        <span class="journey-icon"><span class="count">۳</span><svg class="icon"><use href="#i-monitor"></use></svg></span>
+        <span class="journey-copy"><strong>نصب روی دستگاه</strong><p>انتخاب سیستم‌عامل</p></span>
+      </a>
+      <a class="journey-step" href="#test">
+        <span class="journey-icon"><span class="count">۴</span><svg class="icon"><use href="#i-shield"></use></svg></span>
+        <span class="journey-copy"><strong>آزمایش اتصال</strong><p>ورود امن به پنل</p></span>
+      </a>
     </div>
-  </section>
-
-  <section class="section surface panel" aria-labelledby="formats-title">
-    <div class="panel-header">
-      <span class="section-number">۱</span>
-      <div><h2 id="formats-title">مرحله ۱: دریافت گواهی عمومی Root CA</h2><p>گواهی ریشه CA-Panel را با فرمت مناسب دانلود کنید. هر دو فایل از یک گواهی واحد ساخته شده‌اند.</p></div>
-    </div>
-    <div class="download-mini-grid">
-      <div class="mini-format"><span class="file-badge">PEM</span><div><strong>فرمت PEM</strong><small>برای Linux، macOS، OpenSSL و ابزارهای خط فرمان</small></div></div>
-      <div class="mini-format"><span class="file-badge">CER</span><div><strong>فرمت DER / CER</strong><small>برای Windows، دستگاه‌های Apple و نرم‌افزارهای عمومی</small></div></div>
-    </div>
-  </section>
+  </nav>
 
   <section class="section surface panel" id="verify" aria-labelledby="verify-title">
     <div class="panel-header">
@@ -1104,7 +1331,7 @@ sudo trust extract-compat</pre>
     <div class="remove-panel">
       <div class="remove-art"><svg class="icon" style="width:43px;height:43px"><use href="#i-trash"></use></svg></div>
       <div class="remove-copy">
-        <div class="panel-header" style="margin-bottom:5px"><span class="section-number">۵</span><div><h2>مرحله ۵: حذف اعتماد در صورت عدم نیاز</h2></div></div>
+        <div class="panel-header" style="margin-bottom:5px"><span class="section-number optional-mark" aria-label="اختیاری">i</span><div><h2>حذف اعتماد در صورت عدم نیاز <span class="optional-label">اختیاری</span></h2></div></div>
         <p>اگر دیگر به CA-Panel نیاز ندارید، می‌توانید گواهی ریشه را از فهرست گواهی‌های مورد اعتماد دستگاه خود حذف کنید. پس از حذف، گواهی‌های صادرشده توسط این CA دیگر از طریق این Root CA معتبر شناخته نمی‌شوند.</p>
       </div>
     </div>
