@@ -6,20 +6,51 @@
 https://{$PANEL_DOMAIN} {
     tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem
     encode zstd gzip
-    reverse_proxy api:8000
+
+    # Only the two public Root CA encodings are served from this static directory.
+    @root_download {
+        method GET HEAD
+        path /downloads/ca-panel-root-ca.pem /downloads/ca-panel-root-ca.cer
+    }
+    handle @root_download {
+        uri strip_prefix /downloads
+        root * /srv/onboarding
+        header {
+            Content-Disposition "attachment"
+            X-Content-Type-Options "nosniff"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
+    handle {
+        reverse_proxy api:8000
+    }
 }
 
-# A SINGLE static trust-help page on HTTP (no certificate, CSS, API or download).
-# HTTP is NEVER a fallback for the login, issuance API, MFA or private ZIPs.
-# On HTTP visitation, the static guide probes a public HTTPS image and
-# redirects if it loads. A failed direct HTTPS navigation cannot recover here.
+# HTTP is restricted to the static trust guide and the public Root CA files only.
+# No login, API, MFA, issuance endpoints, or private downloads are exposed on HTTP.
 http://{$PANEL_DOMAIN} {
     header {
         Cache-Control "no-store"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "no-referrer"
-        Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https://{$PANEL_DOMAIN}; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    }
+
+    @root_download {
+        method GET HEAD
+        path /downloads/ca-panel-root-ca.pem /downloads/ca-panel-root-ca.cer
+    }
+    handle @root_download {
+        uri strip_prefix /downloads
+        root * /srv/onboarding
+        header {
+            Content-Disposition "attachment"
+            X-Content-Type-Options "nosniff"
+        }
+        file_server
     }
 
     @guide_only {
@@ -30,6 +61,7 @@ http://{$PANEL_DOMAIN} {
         root * /srv/onboarding
         file_server
     }
+
     handle {
         respond "Not found. CA login and issuance require HTTPS." 404
     }
