@@ -173,14 +173,23 @@ def _sign_leaf(
     return fullchain, key_pem
 
 
-def ensure_panel_tls(project_root: Path | None = None) -> str:
+def ensure_panel_tls(
+    project_root: Path | None = None, *, env_file: str | Path = ".env"
+) -> str:
     """Issue/renew only the configured panel hostname, never arbitrary API domains.
 
     Returns 'issued', 'renewed', or 'unchanged'. Never overwrites an unpaired
     file, foreign CA chain, or mismatched private key.
     """
     root = project_root if project_root is not None else ROOT
-    values = read_env_values(root / ".env")
+    env_path = Path(env_file)
+    if not env_path.is_absolute():
+        env_path = root / env_path
+    try:
+        env_path.resolve().relative_to(root.resolve())
+    except ValueError as exc:
+        raise ValueError("Environment file must be inside the project root") from exc
+    values = read_env_values(env_path)
     if "PANEL_DOMAIN" not in values:
         raise ValueError("Set PANEL_DOMAIN explicitly in .env before local HTTPS issuance")
     domain = safe_domain(values["PANEL_DOMAIN"])
@@ -222,8 +231,14 @@ def ensure_panel_tls(project_root: Path | None = None) -> str:
 
 
 def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Issue the local panel TLS certificate from a configured CA")
+    parser.add_argument("--env", type=Path, default=Path(".env"),
+                        help="Environment file (.env or .env.test)")
+    args = parser.parse_args()
     try:
-        result = ensure_panel_tls()
+        result = ensure_panel_tls(env_file=args.env)
     except (OSError, ValueError, x509.ExtensionNotFound) as exc:
         print(f"[CA-Panel] Local panel TLS setup failed: {exc}", file=sys.stderr)
         return 1
