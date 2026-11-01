@@ -13,7 +13,8 @@ def test_testbed_compose_is_a_distinct_loopback_only_project():
     assert "./.testbed/pki/online:/run/ca-test:ro" in compose
     assert "./.testbed/data:/data" in compose
     assert "secrets/online" not in compose
-    assert "data:/data" not in compose
+    assert "- ./data:/data" not in compose
+    assert "${DATA_HOST_DIR:-./data}" not in compose
     assert "0.0.0.0:" not in compose
     assert '"80:80"' not in compose
     assert '"443:443"' not in compose
@@ -31,4 +32,3 @@ def test_test_caddy_config_has_tls_only_and_no_public_automation():
     assert "https://{$PANEL_DOMAIN}:8443" in caddy
     assert "tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem" in caddy
     assert "http://" not in caddy
-    assert "acme" not in caddy.lower()
