@@ -59,15 +59,16 @@ services:
     ports:
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443"
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443/udp"
-      # HTTP provides exactly one static guide at GET/HEAD /; no downloads, API or login.
+      # HTTP serves only the trust guide and two public Root CA download formats.
       - "${PANEL_HTTP_BIND_IP:-0.0.0.0}:80:80"
     environment:
       PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
     volumes:
       - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
       - ${PANEL_TLS_HOST_DIR:-./secrets/tls}:/etc/caddy/tls:ro
-      # ONE guide file only: no public Root PEM, styling files or secrets mounted.
       - ./app/static/trust.html:/srv/onboarding/index.html:ro
+      - ${CA_ONLINE_HOST_DIR:-./secrets/online}/root-cert.pem:/srv/onboarding/ca-panel-root-ca.pem:ro
+      - ${CA_ONLINE_HOST_DIR:-./secrets/online}/ca-panel-root-ca.cer:/srv/onboarding/ca-panel-root-ca.cer:ro
       - caddy_private_data:/data
       - caddy_private_config:/config
     depends_on:
