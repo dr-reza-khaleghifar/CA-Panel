@@ -94,20 +94,29 @@ def assign(contents: str, key: str, value: str) -> str:
     return "".join(lines)
 
 
-def write_env(contents: str) -> None:
-    """Atomic, mode-0600 write; existing file is never overwritten without necessity."""
+def write_env(contents: str, path: Path | None = None) -> None:
+    """Atomically write a mode-0600 dotenv file inside the project root.
+
+    The default remains the production .env. An explicit secondary filename
+    (for example .env.test) is used only by isolated administrative workflows.
+    """
+    target = ENV_FILE if path is None else Path(path)
+    if target.parent.resolve() != ROOT.resolve() or not target.name.startswith(".env"):
+        fail("Refusing to write an environment file outside the project root")
+    if target.is_symlink():
+        fail("Refusing to replace a symlink environment file")
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=ROOT, prefix=".env.install-",
-            delete=False,
+            mode="w", encoding="utf-8", dir=ROOT,
+            prefix=f"{target.name}.install-", delete=False,
         ) as stream:
             temporary = Path(stream.name)
             os.fchmod(stream.fileno(), 0o600)
             stream.write(contents)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, ENV_FILE)
+        os.replace(temporary, target)
     finally:
         if temporary is not None and temporary.exists():
             temporary.unlink()
