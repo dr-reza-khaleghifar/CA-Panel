@@ -35,7 +35,7 @@ The script prompts twice for two different passphrases:
 - Test Root passphrase: protects `ca-panel-test-ca/offline/root-key.pem`.
 - Test Issuer passphrase: protects `ca-panel-test-ca/online/issuer-key.pem`.
 
-Record the Test Issuer passphrase in the server's `.env.test` as `CA_KEY_PASSWORD`. It must be exactly the same value entered during CA creation. Use a strong unique passphrase; do not place it in shell arguments, environment exports, chat, GitHub, or command history.
+Record the Test Issuer passphrase in the server's `.env.test` as `CA_KEY_PASSWORD`. It must be exactly the same value entered during CA creation. Use a strong unique passphrase that does not contain a single quote, backslash or newline (the dotenv writer deliberately rejects those characters); do not place it in shell arguments, environment exports, chat, GitHub, or command history.
 
 Keep the entire `ca-panel-test-ca/offline/` directory and especially `root-key.pem` offline in encrypted storage with a separate backup. Transfer **only** the three public/online files from `ca-panel-test-ca/online/` to the Ubuntu testbed. Never transfer the Root private key.
 
