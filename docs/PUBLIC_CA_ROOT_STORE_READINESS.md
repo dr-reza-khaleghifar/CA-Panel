@@ -2,6 +2,7 @@
 
 **Status:** Architecture and compliance planning only. No production Root/Issuer keys or certificates are authorized for generation.  
 **Last reviewed:** 2026-11-01  
+**Owner decision:** Proceed with a globally oriented public TLS CA business and service model, subject to documented legal, sanctions, export-control, and Root Store eligibility review.  
 **Target:** Prepare one dedicated, publicly operated TLS CA hierarchy for independent inclusion consideration by Mozilla, Google Chrome, Apple, and Microsoft.
 
 > **Important:** There is no universal browser approval. Each Root Store makes an independent, discretionary decision and may impose additional requirements or reject an otherwise technically compliant applicant. This document defines a common-denominator design and tracks program-specific deltas; it does not promise inclusion.
@@ -13,6 +14,23 @@ The new hierarchy is **TLS Server Authentication only**. It will not issue S/MIM
 The CA must be a genuine public CA offering broadly useful TLS issuance to unrelated subscribers and domains across the public Internet, subject to applicable law and policy. It must not be an internal/enterprise CA, a MITM/interception CA, or a service limited to the operator's existing customers or a narrow TLD/domain set. Public benefit, real public TLS issuance, transparency, security culture, and long-term operational capability are application criteria, not optional marketing claims.
 
 The existing Pardis AI Innovation Root/Issuing hierarchy is a separate legacy/private PKI. Preserve it unchanged. Do not reuse its key, certificate subject, key ceremony, or issuance chain for the new public TLS hierarchy.
+
+### 1.1 Approved strategic direction — global public service
+
+The project owner has agreed that the new CA should be designed as a **global public TLS CA**, not a service restricted to Iranian domains, the `.ir` namespace, or the operator's existing customers.
+
+The target service model is:
+- Accept eligible applications from unrelated subscribers internationally, for domains across the public DNS namespace, subject to applicable law, sanctions, export controls, fraud/abuse controls, and Root Store policy.
+- Avoid policy or product restrictions based solely on customer geography or a narrow set of TLDs unless a documented legal, security, or program requirement makes the restriction necessary.
+- Publish clear eligibility, validation, subscriber agreement, privacy, retention, complaint, abuse-reporting, incident, and revocation processes.
+- Provide globally reachable ACME and certificate retrieval endpoints, validation perspectives, CT integration, OCSP/CRL services, status pages, and security contacts with resilient operations.
+- Provide operational support and incident escalation appropriate for a public CA serving unrelated subscribers in multiple time zones.
+- Demonstrate real public benefit and meaningful, sustained TLS issuance beyond the operator's existing customer base.
+
+**Boundary:** “Global” is a service-design objective, not a claim that every person, country, entity, payment route, or domain can legally be served. Before launch, qualified counsel and the auditor must review the legal entity, ownership/control, operating jurisdictions, hosting and data locations, sanctions/export-control obligations, payment providers, customer eligibility, cross-border data transfers, and any required licenses or registrations. Maintain a documented country/region eligibility matrix and a process to update it. Any restriction must be evidence-based and disclosed; it must not be disguised as a technical limitation.
+
+**Go/no-go:** Do not purchase production HSM capacity, generate a production Root key, or submit a Root Store application until the legal and commercial feasibility review confirms a credible lawful global public-service model and the independent auditor confirms an achievable audit path.
+
 
 ## 2. Root Store targets and policy baseline (reviewed 2026-11-01)
 
