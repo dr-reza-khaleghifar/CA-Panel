@@ -23,9 +23,9 @@ def configure(path: Path, *, rotate: bool) -> None:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise RuntimeError("Administrator enrollment requires a private interactive terminal")
     if path.is_symlink() or not path.is_file():
-        raise RuntimeError("Expected existing regular .env; configure your CA first")
-    if path.parent.resolve() != ROOT.resolve():
-        raise RuntimeError("Unexpected .env path")
+        raise RuntimeError("Expected an existing regular environment file; configure your CA first")
+    if path.parent.resolve() != ROOT.resolve() or path.name not in {".env", ".env.test"}:
+        raise RuntimeError("Environment file must be .env or .env.test in the project root")
     content = path.read_text(encoding="utf-8")
     values = env_values(content)
     if values.get("ADMIN_PASSWORD_HASH") and not rotate:
@@ -66,25 +66,35 @@ def configure(path: Path, *, rotate: bool) -> None:
     content = assign(content, "ADMIN_SESSION_GENERATION", "'" + generation + "'")
     content = assign(content, "CERT_ALLOWED_DOMAINS", "'" + validated + "'")
     content = assign(content, "CERT_ALLOW_ANY_DOMAIN", allow_any)
-    write_env(content)
+    write_env(content, path=path)
     os.chmod(path, 0o600)
     print("\nAdministrator enrollment saved with permissions 0600.")
     print("Account: admin")
-    print("TOTP account label: Iran CA Center (issuer: Iran CA Center)")
+    display_name = values.get("CA_DISPLAY_NAME", "CA-Panel")
+    organization = values.get("CA_ORGANIZATION", display_name)
+    print(f"TOTP account label: {display_name} (issuer: {organization})")
     print("TOTP secret (ONE-TIME DISPLAY, do NOT paste to chat or logs):")
     print(seed)
     print("Enter this secret into a trusted authenticator app as time-based, 6 digits, 30-second period, SHA1.")
     print("Save recovery instructions in encrypted offline storage. Protect .env and BACK IT UP securely.")
-    print("NEXT: bash install.sh --private-https")
+    if path.name == ".env.test":
+        print("NEXT: docker compose --env-file .env.test -f compose.test.yaml up -d --build")
+    else:
+        print("NEXT: bash install.sh --private-https")
     print("Root/Issuing certificates, signing keys and SQLite issuance records were not replaced.")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enroll or rotate the single administrator with TOTP MFA")
     parser.add_argument("--rotate", action="store_true", help="Explicitly replace existing credentials")
+    parser.add_argument(
+        "--env", type=Path, default=Path(".env"),
+        help="Environment file to enroll (.env for live deployment, .env.test for isolated testbed)",
+    )
     args = parser.parse_args()
+    env_path = args.env if args.env.is_absolute() else ROOT / args.env
     try:
-        configure(ROOT / ".env", rotate=args.rotate)
+        configure(env_path, rotate=args.rotate)
     except (RuntimeError, ValueError, OSError, KeyboardInterrupt, EOFError) as exc:
         print(f"[security] {exc}", file=sys.stderr)
         return 1
