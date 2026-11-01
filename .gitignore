@@ -12,3 +12,7 @@ data/
 
 # Locally installed optional Persian font binary; Docker includes it if present.
 app/static/fonts/Vazirmatn.woff2
+
+# Isolated CA testbed; never commit generated test keys, state or credentials.
+.env.test
+.testbed/
