@@ -59,6 +59,22 @@ def test_local_bootstrap_issues_panel_leaf_without_dns_and_is_idempotent(panel):
     assert private == (tls / "privkey.pem").read_bytes()
 
 
+
+def test_bootstrap_can_use_test_env_without_touching_live_tls(panel):
+    test_env = panel / ".env.test"
+    test_env.write_text(
+        (panel / ".env").read_text(encoding="utf-8")
+        .replace("PANEL_DOMAIN=ca1.iravand.ir", "PANEL_DOMAIN=ca-panel-test.local")
+        .replace("PANEL_TLS_HOST_DIR=./secrets/tls", "PANEL_TLS_HOST_DIR=./test-secrets/tls"),
+        encoding="utf-8",
+    )
+
+    assert issue_panel_tls.ensure_panel_tls(panel, env_file=".env.test") == "issued"
+    assert (panel / "test-secrets" / "tls" / "fullchain.pem").is_file()
+    assert (panel / "test-secrets" / "tls" / "privkey.pem").is_file()
+    assert not (panel / "secrets" / "tls").exists()
+
+
 def test_bootstrap_requires_explicit_panel_domain(panel):
     env = panel / ".env"
     env.write_text(env.read_text().replace("PANEL_DOMAIN=ca1.iravand.ir\n", ""))

@@ -9,3 +9,7 @@ __pycache__
 *.pem
 *.key
 *.crt
+
+# Testbed secrets, state and dotenv files must never enter build context.
+.env.test
+.testbed

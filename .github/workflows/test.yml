@@ -46,3 +46,21 @@ jobs:
         run: bash tests/check_http_trust.sh
       - name: Test simulated browser probe (load, failure and timeout)
         run: node tests/trust_probe_behavior_check.js
+
+  testbed-compose:
+    name: Isolated testbed Compose validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate loopback-only testbed Compose model
+        run: |
+          cp .env.test.example .env.test
+          docker compose --env-file .env.test -f compose.test.yaml config -q
+      - name: Parse test Caddyfile with the pinned Caddy image
+        run: |
+          docker run --rm \
+            -e PANEL_DOMAIN=ca-panel-test.iravand.ir \
+            -v "$PWD/Caddyfile.test:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10 caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
