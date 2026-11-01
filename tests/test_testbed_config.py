@@ -10,8 +10,8 @@ def test_testbed_compose_is_a_distinct_loopback_only_project():
     assert "name: ca-panel-testbed" in compose
     assert "127.0.0.1:${TEST_API_PORT:-18080}:8000" in compose
     assert "127.0.0.1:${TEST_HTTPS_PORT:-18443}:8443" in compose
-    assert "./.testbed/pki/online:/run/ca-test:ro" in compose
-    assert "./.testbed/data:/data" in compose
+    assert "${CA_ONLINE_HOST_DIR:-./.testbed/pki/online}:/run/ca-test:ro" in compose
+    assert "${DATA_HOST_DIR:-./.testbed/data}:/data" in compose
     assert "secrets/online" not in compose
     assert "- ./data:/data" not in compose
     assert "${DATA_HOST_DIR:-./data}" not in compose
