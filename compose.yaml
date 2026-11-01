@@ -59,7 +59,7 @@ services:
     ports:
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443"
       - "${PANEL_TLS_BIND_IP:-0.0.0.0}:443:443/udp"
-      # HTTP serves only the trust guide and two public Root CA download formats.
+      # HTTP serves only the trust guide, its local script and public Root CA downloads.
       - "${PANEL_HTTP_BIND_IP:-0.0.0.0}:80:80"
     environment:
       PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
@@ -67,6 +67,7 @@ services:
       - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
       - ${PANEL_TLS_HOST_DIR:-./secrets/tls}:/etc/caddy/tls:ro
       - ./app/static/trust.html:/srv/onboarding/index.html:ro
+      - ./app/static/trust.js:/srv/onboarding/trust.js:ro
       - ${CA_ONLINE_HOST_DIR:-./secrets/online}/root-cert.pem:/srv/onboarding/ca-panel-root-ca.pem:ro
       - ${CA_ONLINE_HOST_DIR:-./secrets/online}/ca-panel-root-ca.cer:/srv/onboarding/ca-panel-root-ca.cer:ro
       - caddy_private_data:/data
