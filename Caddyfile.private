@@ -28,7 +28,7 @@ https://{$PANEL_DOMAIN} {
     }
 }
 
-# HTTP is restricted to the static trust guide and the public Root CA files only.
+# HTTP is restricted to the static trust guide, its local helper script and public Root CA files.
 # No login, API, MFA, issuance endpoints, or private downloads are exposed on HTTP.
 http://{$PANEL_DOMAIN} {
     header {
@@ -36,7 +36,7 @@ http://{$PANEL_DOMAIN} {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "no-referrer"
-        Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+        Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     }
 
     @root_download {
@@ -50,6 +50,15 @@ http://{$PANEL_DOMAIN} {
             Content-Disposition "attachment"
             X-Content-Type-Options "nosniff"
         }
+        file_server
+    }
+
+    @guide_assets {
+        method GET HEAD
+        path /trust.js
+    }
+    handle @guide_assets {
+        root * /srv/onboarding
         file_server
     }
 
