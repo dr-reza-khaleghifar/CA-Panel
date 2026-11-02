@@ -2,7 +2,7 @@
 
 ## Security hardening and protected issuance (current release)
 
-**The issuance API is no longer anonymous.** Before exposing this version, enroll the operator using `python3 scripts/setup_admin.py` and deploy with `bash install.sh --private-https`. Authenticated requests require TOTP MFA, a server-side opaque session and CSRF protection; any issuance domain must be on the `CERT_ALLOWED_DOMAINS` allowlist and must still pass DNS TXT verification. Admin login is `/login`. No enrollment means issuance is **fail-closed** with HTTP 503.
+**Public requests and private signing are separate.** Visitors can submit a public DNS hostname, prove control with a per-request TXT challenge and check status using the unguessable request ID. A certificate is not signed until an authenticated administrator reviews and approves the verified request. Admin review APIs require TOTP MFA, a server-side session and CSRF protection. Enroll the operator using `python3 scripts/setup_admin.py`; admin login is `/login` and the review queue is `/admin/requests`. Without admin enrollment, new public request creation and signing fail closed with HTTP 503.
 
 Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING.md](SECURITY_HARDENING.md). The software currently supports **one admin**, not enterprise RBAC or HSM-based CA security. Restrict network edge and use independent security review before production use.
 
@@ -19,10 +19,10 @@ Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING
 
 - Place service behind HTTPS reverse proxy and do not publish port 8000 publicly. Default binding is `127.0.0.1:8080`.
 - Set `APP_UID`/`APP_GID` to host UID/GID that owns `data/` and `secrets/online/`. On Linux use `id -u`, `id -g`. Ensure `chmod 700 secrets/online`, `chmod 600 secrets/online/issuer-key.pem`, and `chmod 600 .env` (mounted files readable by the application UID). On SELinux hosts, additional volume labeling may be required.
-- Never enable `TRUST_PROXY_HEADERS=1` unless every remote caller passes through a trusted proxy that sanitizes incoming `X-Forwarded-For`. If set, all direct access must be administratively controlled. Defaults to disabled, which can group public clients behind one reverse-proxy IP for rate limiting.
+- The production Compose profile sets `TRUST_PROXY_HEADERS=1` because the API is bound to `127.0.0.1:8080` and all internet traffic reaches it through Caddy. Caddy explicitly overwrites `X-Real-IP` with the socket peer address; the application accepts only that header. Never expose the API port or allow untrusted callers to bypass Caddy. If you change the network topology, revisit this trust boundary before deployment.
 - Provide a reliable system DNS resolver. DNS TXT propagation and split-horizon DNS may affect verification. DNS spoofing/poisoning can undermine this basic model; use a secure resolver. DNSSEC is not checked.
-- The issuance API now requires a single admin password and TOTP MFA, session and CSRF, plus an explicit domain allowlist. Production internet exposure still needs edge firewall/VPN, external monitoring, operational review and abuse controls. A challenge is necessary to obtain each certificate, but a large anonymous CA can still be abused.
-- For user-browser trusted HTTPS, use public CA/ACME instead. Installing private CA roots on client machines grants broad trust; do so only under managed policy.
+- Public request creation is anonymous but rate-limited and requires a unique DNS TXT proof. The administrator approval/rejection APIs require password + TOTP, session and CSRF. The current domain allowlist policy is checked at request time, admin approval and signing time. Production exposure still needs edge firewall, monitoring, abuse review and incident response. A publicly reachable private CA can still be abused if the operator approves malicious requests.
+- The portal itself uses Caddy/ACME for browser-trusted HTTPS. Certificates issued to user domains remain private-CA certificates; installing the private Root on clients grants broad trust and must be done only under an explicit managed policy.
 
 ## Observability & backup
 
