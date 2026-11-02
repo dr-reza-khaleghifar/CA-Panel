@@ -83,15 +83,15 @@ APP_GID=1000
 CA_ONLINE_HOST_DIR=./secrets/online
 CA_DIR=/run/ca
 PANEL_DOMAIN=ca1.iravand.ir
-PANEL_TLS_HOST_DIR=./secrets/tls
 PANEL_TLS_BIND_IP=0.0.0.0
+PANEL_HTTP_BIND_IP=0.0.0.0
 ```
 
 `APP_UID` و `APP_GID` را با مقادیر واقعی `id -u` و `id -g` کاربر Ubuntu تطبیق دهید. اگر سرور فقط باید در VPN یا شبکه داخلی در دسترس باشد، `PANEL_TLS_BIND_IP` را روی همان IP محلی Ubuntu بگذارید و محدودیت شبکه/فایروال را نیز اعمال کنید. Docker publish ممکن است برخی قوانین UFW را دور بزند؛ قواعد امنیتی cloud firewall و `DOCKER-USER` را هم بررسی کنید.
 
 **اگر CA را هنوز نساخته‌اید:** روی یک کامپیوتر مدیریتی *امن و آفلاین* با دستور `bash install.sh --init-ca` آن را بسازید، کلید Root را همان‌جا آفلاین نگه دارید، فقط خروجی `secrets/online/` را به Ubuntu انتقال دهید و `CA_KEY_PASSWORD` همان Issuing CA را در env سرور وارد کنید. ساخت CA تازه اعتماد مرورگر به Root قبلی را جایگزین نمی‌کند.
 
-## ۴. راه‌اندازی اولیه فقط روی localhost
+## ۴. راه‌اندازی API و بررسی سلامت محلی
 
 ```bash
 cd ~/CA-Panel
@@ -101,58 +101,32 @@ docker compose ps
 curl http://127.0.0.1:8080/healthz
 ```
 
-پاسخ مورد انتظار `{"status":"ok"}` است. API فعلاً فقط به `127.0.0.1:8080` میزبان bind شده؛ برای دسترسی از Mac، روی Mac یک SSH tunnel باز کنید:
+پاسخ مورد انتظار `{"status":"ok"}` است. API فقط روی `127.0.0.1:8080` میزبان bind شده و نباید مستقیماً در اینترنت منتشر شود. برای پرتال عمومی از Caddy روی HTTPS استفاده می‌کنیم؛ رابط صدور را از پورت داخلی API باز نکنید.
 
-```bash
-ssh -L 8080:127.0.0.1:8080 YOUR_USER@SERVER_IP
-```
+## ۵. فعال‌کردن HTTPS عمومی و پرتال کاربران
 
-و در مرورگر Mac پنل را با `http://localhost:8080` باز کنید. `localhost` برای Web Crypto (ساخت CSR/کلید مرورگر) secure context محسوب می‌شود.
-
-## ۵. صدور گواهی سرور برای ca1.iravand.ir (اختیاری؛ روش دستی)
-
-**روش ساده‌تر جدید:** روی Ubuntu مستقیماً `bash install.sh --private-https` اجرا کنید؛ گواهی TLS برای دامنه `PANEL_DOMAIN` را از Issuing CA شما می‌سازد و نیاز به TXT یا دانلود ZIP نیست. مراحل زیر فقط برای صدور دستی جایگزین هستند.
-
-داخل پنل دامنه `ca1.iravand.ir` را ثبت کنید، رکورد DNS TXT اعلام‌شده با نام `_ca-panel.ca1.iravand.ir` را در DNS قرار دهید و بعد از تأیید مالکیت، گواهی سرور را صادر کنید. ZIP حاوی کلید خصوصی سرور یک‌بارمصرف است؛ آن را به‌صورت امن دانلود کنید.
-
-روی Mac، فایل ZIP دانلودشده را با `scp` به پوشه خانگی Ubuntu (نه Git) منتقل کنید:
-
-```bash
-scp "$HOME/Downloads/ca1.iravand.ir-certificates.zip" \
-    YOUR_USER@SERVER_IP:~/ca1.iravand.ir-certificates.zip
-```
-
-روی Ubuntu:
+برای `PANEL_DOMAIN` باید رکورد DNS عمومی به IP همین سرور اشاره کند و TCP پورت‌های ۸۰ و ۴۴۳ از اینترنت قابل دسترسی باشند. Caddy از ACME عمومی برای گواهی HTTPS خود سایت استفاده می‌کند؛ نیازی به صدور TLS leaf از CA خصوصی یا ساخت فایل در `secrets/tls/` نیست.
 
 ```bash
 cd ~/CA-Panel
-python3 scripts/setup_private_tls.py --zip "$HOME/ca1.iravand.ir-certificates.zip"
+git pull --ff-only
+python3 scripts/setup_admin.py   # فقط اگر مدیر هنوز راه‌اندازی نشده است
+bash install.sh --public-https
 ```
 
-اسکریپت نام دامنه در SAN، زنجیره تا Root CA، انقضا و انطباق کلید خصوصی و گواهی را با OpenSSL بررسی می‌کند و فقط `secrets/tls/fullchain.pem` و `secrets/tls/privkey.pem` را با مجوز محدود نصب می‌کند. **از کلید Issuing CA به‌جای کلید HTTPS استفاده نکنید.**
+گزینه قدیمی `--private-https` نیز برای سازگاری پذیرفته می‌شود، اما همان ACME عمومی را فعال می‌کند. پروفایل Compose با نام تاریخی `private-tls` حفظ شده است. Caddy روی TCP/UDP 443 پرتال HTTPS را ارائه می‌کند و روی TCP 80 فقط راهنمای Root CA، دو دانلود عمومی Root و مسیرهای لازم ACME را در دسترس می‌گذارد.
 
-## ۶. فعال‌کردن HTTPS روی پورت ۴۴۳
+بررسی سلامت پرتال:
 
 ```bash
-# فقط اگر سرویس ACME Caddy قبلی روی همین سرور فعال است:
-docker compose --profile public stop caddy
-
-bash install.sh --private-https
-docker compose --profile private-tls ps
+curl --noproxy '*' https://ca1.iravand.ir/healthz
+curl --noproxy '*' -I https://ca1.iravand.ir/
+curl --noproxy '*' -I https://ca1.iravand.ir/admin/requests
 ```
 
-اگر `PANEL_TLS_BIND_IP=0.0.0.0` باشد Caddy روی TCP/UDP 443 گوش می‌دهد. اگر bind به IP داخلی مشخص کرده‌اید، تست محلی پیش‌فرض نصاب روی 127.0.0.1 در دسترس نخواهد بود؛ در این حالت به جای نصاب، `docker compose --profile private-tls up -d --build api caddy-private` را اجرا کنید و سلامت را با IP مناسب و DNS/SNI بررسی کنید.
+پاسخ‌های مورد انتظار به‌ترتیب 200، 200 و 303 به صفحه ورود مدیر هستند. برای ورود مدیر از `https://ca1.iravand.ir/login` استفاده کنید؛ کاربران عمومی مستقیماً از `https://ca1.iravand.ir/` درخواست گواهی ثبت می‌کنند.
 
-تست روی Ubuntu با گواهی عمومی Root خودتان:
-
-```bash
-curl --noproxy '*' \
-  --cacert secrets/online/root-cert.pem \
-  --resolve ca1.iravand.ir:443:127.0.0.1 \
-  https://ca1.iravand.ir/healthz
-```
-
-پاسخ مورد انتظار `{"status":"ok"}` است. اگر `PANEL_TLS_BIND_IP` را به IP دیگری تغییر داده‌اید، در `--resolve` همان IP را جایگزین کنید. اگر Root PEM نام سفارشی دارد مسیر `--cacert` را متناسب تغییر دهید.
+**توجه:** گواهی‌های دامنه‌ای که CA-Panel صادر می‌کند همچنان از Private CA امضا می‌شوند و برای اعتماد به آن‌ها باید Root CA را با اثر انگشت مستقل روی دستگاه مقصد نصب کرد. این موضوع با TLS عمومی خود پرتال متفاوت است.
 
 ## ۷. DNS، شبکه و اعتماد مرورگر
 
