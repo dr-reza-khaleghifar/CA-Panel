@@ -34,7 +34,8 @@ marker = "http://{$PANEL_DOMAIN} {"
 start = source.find(marker)
 if start < 0:
     raise SystemExit("Production HTTP trust site block not found")
-opening = source.find("{", start)
+placeholder_end = source.find("}", start)
+opening = source.find("{", placeholder_end + 1)
 depth = 0
 end = None
 for index in range(opening, len(source)):
