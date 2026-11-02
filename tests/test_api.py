@@ -41,6 +41,12 @@ def client(tmp_path):
         yield test_client
 
 
+def approve_request(client, rid):
+    response = client.post(f"/api/admin/requests/{rid}/approve")
+    assert response.status_code == 200, response.text
+    assert response.json()["approval_status"] == "approved"
+
+
 def test_domain_normalization():
     assert normalize_domain('https://www.example.com/abc') == 'www.example.com'
     assert normalize_domain('bücher.de') == 'xn--bcher-kva.de'
@@ -56,8 +62,9 @@ def test_issue_end_to_end(client):
     assert data['dns_name'] == '_ca-panel.example.org'
     assert data['dns_value'].startswith('ca-panel-verification=')
     rid = data['request_id']
-    assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org')}).status_code == 403
+    assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org')}).status_code == 409
     assert client.post(f'/api/requests/{rid}/verify').json()['verified']
+    approve_request(client, rid)
     resp = client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org', 'example.org')})
     assert resp.status_code == 201, resp.text
     cert = x509.load_pem_x509_certificate(resp.json()['certificate_pem'].encode())
@@ -73,6 +80,7 @@ def test_issue_end_to_end(client):
 def test_cannot_issue_other_domain_or_extra_sans(client):
     rid = client.post('/api/requests', json={'domain':'example.org'}).json()['request_id']
     client.post(f'/api/requests/{rid}/verify')
+    approve_request(client, rid)
     assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('evil.org')}).status_code == 422
     assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org', 'evil.org')}).status_code == 422
 
@@ -81,9 +89,10 @@ def test_dns_proof_enforced(client):
     client.app.state.dns_checker = lambda name, expected: False
     rid = client.post('/api/requests', json={'domain':'example.org'}).json()['request_id']
     assert client.post(f'/api/requests/{rid}/verify').status_code == 422
-    assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org')}).status_code == 403
+    assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org')}).status_code == 409
     client.app.state.dns_checker = lambda name, expected: True
     assert client.post(f'/api/requests/{rid}/verify').status_code == 200
+    approve_request(client, rid)
     client.app.state.dns_checker = lambda name, expected: False
     assert client.post(f'/api/requests/{rid}/issue', json={'csr_pem':csr_for('example.org')}).status_code == 403
 
@@ -179,8 +188,9 @@ def test_server_side_issuance_download_links_and_one_time_bundle(client):
     created = client.post("/api/requests", json={"domain": "example.org"})
     assert created.status_code == 201
     rid = created.json()["request_id"]
-    assert client.post(f"/api/requests/{rid}/issue-server").status_code == 403
+    assert client.post(f"/api/requests/{rid}/issue-server").status_code == 409
     assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    approve_request(client, rid)
     issued = client.post(f"/api/requests/{rid}/issue-server")
     assert issued.status_code == 201, issued.text
     result = issued.json()
@@ -216,6 +226,7 @@ def test_server_side_issuance_download_links_and_one_time_bundle(client):
 def test_expired_private_bundle_link(client):
     rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
     assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    approve_request(client, rid)
     result = client.post(f"/api/requests/{rid}/issue-server").json()
     token = result["download_url"].split("/")[-1]
     deadline, data, filename = client.app.state.downloads[token]
@@ -228,6 +239,7 @@ def test_private_key_is_not_saved_in_sqlite(client, tmp_path):
     from app.main import connect
     rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
     client.post(f"/api/requests/{rid}/verify")
+    approve_request(client, rid)
     result = client.post(f"/api/requests/{rid}/issue-server")
     assert result.status_code == 201
     with connect(tmp_path / "data" / "panel.db") as conn:
@@ -258,6 +270,7 @@ def test_downloads_are_cleared_at_shutdown(tmp_path):
         test_client.headers.update({'X-CSRF-Token': logged.json()['csrf_token']})
         rid = test_client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
         assert test_client.post(f"/api/requests/{rid}/verify").status_code == 200
+        assert test_client.post(f"/api/admin/requests/{rid}/approve").status_code == 200
         response = test_client.post(f"/api/requests/{rid}/issue-server")
         assert response.status_code == 201, response.text
         assert len(api.state.downloads) == 1
