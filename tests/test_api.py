@@ -273,11 +273,20 @@ def test_public_portal_allows_anonymous_dns_verified_auto_issuance(client):
     assert "landing.js" in landing.text
     assert 'href="/issue"' in landing.text
     assert "گواهی دیجیتال دامنه‌تان" in landing.text
+    assert '/static/enterprise.css?v=1' in landing.text
 
     portal = client.get("/issue")
     assert portal.status_code == 200
     assert "portal.js" in portal.text
     assert 'id="domain-form"' in portal.text
+    assert '/static/enterprise.css?v=1' in portal.text
+
+    login = client.get("/login")
+    assert login.status_code == 200
+    assert '/static/enterprise.css?v=1' in login.text
+    enterprise_css = client.get("/static/enterprise.css")
+    assert enterprise_css.status_code == 200
+    assert "color-scheme: dark" in enterprise_css.text
     assert client.get("/admin", follow_redirects=False).status_code == 303
 
     # The legacy/admin API remains protected.
