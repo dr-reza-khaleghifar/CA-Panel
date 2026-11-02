@@ -57,7 +57,9 @@ def test_password_hash_and_totp_validation():
 def test_anonymous_can_submit_public_request_but_admin_actions_stay_protected(secured):
     client, _, _ = secured
     assert client.get("/healthz").status_code == 200
-    assert client.get("/trust").status_code == 200
+    trust = client.get("/trust")
+    assert trust.status_code == 200
+    assert "'unsafe-inline'" in trust.headers["content-security-policy"]
     assert client.get("/trust.js").status_code == 200
     assert client.get("/api/ca.pem").status_code == 200
     assert client.get("/api/system").status_code == 200
