@@ -48,7 +48,7 @@ openssl x509 -in secrets/online/root-cert.pem -noout -fingerprint -sha256
 
 ## Limits and next steps
 
-- Single-admin MFA authentication exists, but no multi-tenant RBAC/SSO, cancellation, automatic renewal, revocation, CRL/OCSP, ACME, HSM or formal CA compliance.
+- Single-admin MFA authentication exists, but no multi-tenant RBAC/SSO, request cancellation, automatic renewal of customer certificates, revocation, CRL/OCSP, ACME customer issuance, HSM or formal CA compliance. Caddy/ACME renews only the portal's own HTTPS certificate.
 - DNS verification requests count against a one-hour challenge lifetime and a per-request verification attempt limit.
 - Current default certificate lifetime is 30 days; intermediate is 365 days, root is ~10 years.
 - Designed for low-cost pilot/private usage. Conduct an independent security audit before broader deployment.
