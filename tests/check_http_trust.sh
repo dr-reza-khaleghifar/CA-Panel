@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise real Caddy HTTP onboarding and public Root CA downloads using throwaway files.
+# Exercise the production HTTP trust block with real Caddy and disposable public certificate material.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -12,27 +12,50 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$tmp/tls" "$tmp/onboarding"
+mkdir -p "$tmp/onboarding"
 
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
   -subj "/CN=ca1.iravand.ir" \
-  -keyout "$tmp/tls/privkey.pem" \
-  -out "$tmp/tls/fullchain.pem" >/dev/null 2>&1
-
-# Use only disposable public certificate material in this integration test.
-openssl x509 -in "$tmp/tls/fullchain.pem" \
-  -out "$tmp/onboarding/ca-panel-root-ca.pem"
-openssl x509 -in "$tmp/tls/fullchain.pem" -outform DER \
+  -keyout "$tmp/root-test.key" \
+  -out "$tmp/onboarding/ca-panel-root-ca.pem" >/dev/null 2>&1
+openssl x509 -in "$tmp/onboarding/ca-panel-root-ca.pem" -outform DER \
   -out "$tmp/onboarding/ca-panel-root-ca.cer"
 cp app/static/trust.html "$tmp/onboarding/index.html"
 cp app/static/trust.js "$tmp/onboarding/trust.js"
 
+# Extract the exact production HTTP site block but disable HTTPS automation in
+# this isolated test, so CI never attempts ACME issuance for the real hostname.
+python3 - "$PWD/Caddyfile.private" "$tmp/Caddyfile" <<'PY'
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+marker = "http://{$PANEL_DOMAIN} {"
+start = source.find(marker)
+if start < 0:
+    raise SystemExit("Production HTTP trust site block not found")
+opening = source.find("{", start)
+depth = 0
+end = None
+for index in range(opening, len(source)):
+    if source[index] == "{":
+        depth += 1
+    elif source[index] == "}":
+        depth -= 1
+        if depth == 0:
+            end = index + 1
+            break
+if end is None:
+    raise SystemExit("Unbalanced production HTTP site block")
+block = source[start:end]
+Path(sys.argv[2]).write_text("{\n    auto_https off\n}\n\n" + block + "\n", encoding="utf-8")
+PY
+
 docker run -d --name "$container" \
   -e PANEL_DOMAIN=ca1.iravand.ir \
   -p 127.0.0.1:18080:80 \
-  -v "$PWD/Caddyfile.private:/etc/caddy/Caddyfile:ro" \
+  -v "$tmp/Caddyfile:/etc/caddy/Caddyfile:ro" \
   -v "$tmp/onboarding:/srv/onboarding:ro" \
-  -v "$tmp/tls:/etc/caddy/tls:ro" \
   caddy:2.10 >/dev/null
 
 base=http://127.0.0.1:18080
