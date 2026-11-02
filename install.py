@@ -253,8 +253,8 @@ def public_https_is_healthy(domain: str) -> bool:
                     secure.settimeout(3)
                     secure.sendall(
                         (
-                            f"GET /healthz HTTP/1.1\\r\\nHost: {domain}\\r\\n"
-                            "Connection: close\\r\\n\\r\\n"
+                            f"GET /healthz HTTP/1.1\r\nHost: {domain}\r\n"
+                            "Connection: close\r\n\r\n"
                         ).encode("ascii")
                     )
                     response = b""
