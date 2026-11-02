@@ -17,7 +17,8 @@ Offline Root CA signing key ── one-time signing ── Issuing CA certificat
          NEVER mounted in the API container
 ```
 
-- Trust model: only independently trusted Root CA fingerprints should be installed in clients. This system does not participate in OS/browser public trust programs. Any attacker holding the online Issuing CA key **and** its passphrase can issue certificates for any name. Limit access and keep root offline.
+- Trust model: only independently trusted Root CA fingerprints should be installed in clients. This system does not participate in OS/browser public trust programs. The public portal does not grant public-browser trust; each client must install the private Root CA. Any attacker holding the online Issuing CA key **and** its passphrase can issue certificates for any name. Limit access and keep root offline.
+- Access boundary: customers use the public portal and anonymous `/api/public/*` DNS-proof workflow. The administrator uses `/admin` with MFA to control domain policy and CA operations. Public issuance is disabled until administrator enrollment is complete.
 - Domain validation: the requester creates a challenge and publishes an exact, random TXT value under `_ca-panel.<domain>`. Request IDs and challenge tokens are cryptographically random. Challenges expire after the configurable TTL (default one hour). DNS is rechecked just before signing. DNS is queried via the configured resolver; this MVP does not implement DNSSEC validation or direct authoritative-name-server querying.
 - Certificate profile: single DNS SAN, configurable 1–30 day lifetime (default 30), EKU serverAuth, CA=false, RSA or ECDSA leaf key; other requested CSR extensions are not copied. No wildcard, IP, multi-domain or client authentication certificates.
 - Data: SQLite holds domain, token, requester IP, verification attempts, timestamps, signed public certificates and serials. End-user private keys are created temporarily in server RAM (not persisted to SQLite or disk). Expired **unissued** requests older than seven days are periodically pruned on new requests. Issued records persist until manually archived/purged.
@@ -29,26 +30,23 @@ Offline Root CA signing key ── one-time signing ── Issuing CA certificat
 1. Never accept a claim of ownership without DNS proof.
 2. The signing authority cannot be selected by callers. Subject CN/SAN is constrained to the verified domain; user-supplied CSR extensions cannot request CA rights.
 3. Refuse short RSA keys and unsupported EC curves; reject invalid CSR signatures.
-4. Rate-limit anonymous requests per remote IP and globally, and cap verification attempts per request.
+4. Rate-limit anonymous public requests per remote IP and globally, and cap verification attempts per request.
 5. Service is non-root, filesystem is read-only except SQLite volume, Linux capabilities dropped; `/data` and `/run/ca` are separate mounts.
 6. Full public HTTPS for the *panel* is handled separately from private-PKI leaf issuance.
 
 ## Roadmap (out of MVP scope)
 
-- Administrator/user authentication, per-account quotas and audit events
+- Multi-admin RBAC, user accounts, per-account quotas, request approval/cancellation and audit-console UI
 - ACME RFC 8555 client protocol and automated certificate renewal
 - Revocation / CRL and OCSP, certificate inventory and policy enforcement
 - HSM/KMS/PKCS#11 key protection, intermediate rotation tooling, secure backups
 - DNSSEC validation, trusted authoritative-resolution strategy, monitoring, abuse mitigation
 
-## Automatic browser issuance (MVP)
+## Public portal and server-side private-key generation
 
-The user adds the DNS TXT, presses the verification button once, and the browser creates a 2048-bit RSA keypair with `crypto.subtle.generateKey()`. It serializes a locally signed PKCS#10 CSR (CN and SAN restricted to the verified domain) and sends **only the CSR** to the existing issuance endpoint. The private key stays within the browser JavaScript process and is exported to a client-side ZIP together with returned leaf/intermediate/root PEM files. There are no additional server-side dependencies or private-key storage changes.
+The public portal is served at `/`; customers do not need administrator credentials. The administrator workspace is served at `/admin` and remains protected by MFA. The public API is available only after administrator setup and only for domains allowed by the administrator policy. For each request, the user publishes the exact DNS TXT challenge; the API verifies it and rechecks it immediately before signing.
 
-The ZIP contains an **unencrypted** private key; downloads/backups must be protected by the user, and private keys cannot be recovered from the server. Secure browser context (HTTPS or localhost) is mandatory. Automatic certificate creation is triggered after user-initiated DNS verification; **background auto-renewal or scheduled retries are not implemented**. Failed issuance should be retried while the same browser tab holds the generated key; a certificate already issued for that challenge cannot safely be paired with a new key.
-
-
-## Server-side private-key generation (default web UI)
+FastAPI generates an RSA private key (default 2048-bit; configurable), signs a matching CSR with the encrypted online Issuing CA and writes only the **public certificate/serial** to SQLite. The private key (PEM) and ZIP are held in the single-worker process memory for at most ten minutes (configurable shorter), exposed once via a high-entropy bearer download URL, then removed from the downloadable registry. The PEM private key is not persisted to disk or SQLite.
 
 The current UI no longer relies on browser WebCrypto: after DNS TXT validation, FastAPI generates an RSA private key (default 2048-bit; configurable), signs a matching CSR with the encrypted online Issuing CA and writes only the **public certificate/serial** to SQLite. The private key (PEM) and ZIP are held in the single-worker process memory for at most ten minutes (configurable shorter), exposed once via a high-entropy bearer download URL, then removed from the downloadable registry. One-time downloading does not guarantee secure deletion of Python memory buffers; memory snapshots, crash dumps and a compromised server remain sensitive. There is no key escrow or durable recovery. For higher-assurance deployments, use the existing manual CSR workflow where the key never touches this server.
 
