@@ -10,7 +10,7 @@ All examples presume the CA private-HTTPS deployment. Expose the public portal *
 - The default policy is restrictive: `CERT_ALLOWED_DOMAINS` must contain the approved DNS suffixes. To offer the service for any valid public DNS hostname, the administrator must explicitly opt in with `CERT_ALLOW_ANY_DOMAIN=1` (or confirm `*` during administrator setup). This is an operator decision; do not enable it without rate limiting and abuse response.
 - Every public issuance still requires a fresh, random DNS TXT challenge for the exact hostname. The TXT record is checked at verification and again immediately before signing. IP addresses, wildcard names and reserved/private suffixes remain rejected.
 - The server generates the private key and certificate after DNS verification. The private key is held only in process memory inside a one-time ZIP download; it is not stored in SQLite. The download URL is a secret bearer credential, valid for at most 10 minutes and one successful download.
-- Default request limits are 20 new challenges/hour/IP and 200/hour globally. For an internet-facing Caddy deployment, enable `TRUST_PROXY_HEADERS=1` only when all incoming traffic is forced through that trusted proxy and the API port remains private/localhost-bound; otherwise do not trust forwarded headers.
+- Default request limits are 20 new challenges/hour/IP and 200/hour globally. The bundled Caddyfiles overwrite `X-Forwarded-For` with the TCP peer address, and Compose defaults `TRUST_PROXY_HEADERS=1` for per-client rate limits. Keep API port 8080 private/localhost-bound. If you use a different proxy, enable this setting only when that proxy sanitizes client-supplied forwarded headers.
 
 ### Public endpoints
 
