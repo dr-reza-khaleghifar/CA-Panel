@@ -25,7 +25,7 @@ The manual CSR endpoint `POST /api/requests/{request_id}/issue` and all legacy `
 
 ## Administrator authentication, session and CSRF
 
-Before issuing, the server operator must complete `python3 scripts/setup_admin.py` and configure the allowed certificate domain suffixes; otherwise protected endpoints fail closed. Browser login is `GET /login`; `POST /api/auth/login` accepts:
+Before enabling public issuance, the server operator must complete `python3 scripts/setup_admin.py` and configure the allowed certificate domain suffixes or explicitly enable all public DNS hostnames. Without admin setup, `/api/public/*` returns HTTP 503; with an empty allowlist and all-domains mode disabled, new requests are denied. Administrator browser login is `GET /login`; `POST /api/auth/login` accepts:
 
 ```json
 { "username": "admin", "password": "<your-admin-password>", "code": "123456" }
