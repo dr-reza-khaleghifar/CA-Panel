@@ -386,7 +386,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         path = request.url.path
-        public = (path in ("/", "/healthz", "/login", "/api/system", "/api/ca.pem",
+        public = (path in ("/", "/trust", "/trust.js", "/healthz", "/login", "/api/system", "/api/ca.pem",
                            "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
                   or path.startswith("/static/")
                   or is_public_issuance_route(path, request.method))
@@ -472,6 +472,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/", include_in_schema=False)
     def home():
         return FileResponse(BASE / "static" / "public.html", media_type="text/html")
+
+    @app.get("/trust", include_in_schema=False)
+    def trust_guide():
+        return FileResponse(BASE / "static" / "trust.html", media_type="text/html")
+
+    @app.get("/trust.js", include_in_schema=False)
+    def trust_script():
+        return FileResponse(BASE / "static" / "trust.js", media_type="application/javascript")
 
     @app.get("/admin", include_in_schema=False)
     def admin_home():
