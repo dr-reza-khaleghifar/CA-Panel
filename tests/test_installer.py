@@ -207,48 +207,40 @@ def test_write_env_can_target_test_environment_without_touching_live_env(tmp_pat
     assert stat.S_IMODE(test_env.stat().st_mode) == 0o600
 
 
-def test_private_https_bootstraps_leaf_locally_and_starts_caddy(tmp_path, monkeypatch):
+def test_public_https_starts_caddy_without_signing_a_private_panel_leaf(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
-        "CA_KEY_PASSWORD='knownPassword123'\n"
-        "PANEL_DOMAIN=ca1.iravand.ir\n"
-        "PANEL_TLS_HOST_DIR=./secrets/tls\n"
+        "CA_KEY_PASSWORD='knownPassword123'\\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\\n"
     ))
-    monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
-    from scripts import issue_panel_tls
-    issuance = []
-    monkeypatch.setattr(issue_panel_tls, "ensure_panel_tls",
-                        lambda root: issuance.append(root) or "issued")
+    monkeypatch.setattr(sys, "argv", ["install.py", "--public-https"])
     commands = []
     monkeypatch.setattr(install, "run", lambda *args, **kwargs: commands.append(args))
     monkeypatch.setattr(install, "check_health", lambda: True)
-    monkeypatch.setattr(install, "private_https_is_healthy",
-                        lambda root, domain: True)
+    tls_checks = []
+    monkeypatch.setattr(install, "public_https_is_healthy",
+                        lambda domain: tls_checks.append(domain) or True)
     assert install.main() == 0
-    assert issuance == [tmp_path]
+    assert tls_checks == ["ca1.iravand.ir"]
     assert ("docker", "compose", "--profile", "private-tls", "up", "-d",
             "--build", "api", "caddy-private") in commands
-    assert ("docker", "compose", "--profile", "private-tls", "restart",
-            "caddy-private") in commands
+    assert not any("restart" in command for command in commands)
 
 
-def test_private_https_runs_expected_compose_profile_and_checks_tls(tmp_path, monkeypatch):
+def test_legacy_private_https_flag_is_an_alias_for_public_acme_tls(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
-        "CA_KEY_PASSWORD='knownPassword123'\n"
-        "PANEL_DOMAIN=ca1.iravand.ir\n"
-        "PANEL_TLS_HOST_DIR=./secrets/tls\n"
+        "CA_KEY_PASSWORD='knownPassword123'\\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\\n"
+        "PANEL_TLS_HOST_DIR=./secrets/tls\\n"
     ))
-    from scripts import issue_panel_tls
-    monkeypatch.setattr(issue_panel_tls, "ensure_panel_tls", lambda root: "unchanged")
     calls = []
     monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
     monkeypatch.setattr(install, "run", lambda *args, **kwargs: calls.append(args))
     monkeypatch.setattr(install, "check_health", lambda: True)
     tls_checks = []
-    monkeypatch.setattr(install, "private_https_is_healthy",
-                        lambda root, name: tls_checks.append((root, name)) or True)
+    monkeypatch.setattr(install, "public_https_is_healthy",
+                        lambda domain: tls_checks.append(domain) or True)
     assert install.main() == 0
     assert ("docker", "compose", "--profile", "private-tls", "up", "-d",
             "--build", "api", "caddy-private") in calls
-    assert tls_checks == [(tmp_path / "secrets" / "online" / "root-cert.pem",
-                           "ca1.iravand.ir")]
+    assert tls_checks == ["ca1.iravand.ir"]
     assert not any("restart" in command for command in calls)
