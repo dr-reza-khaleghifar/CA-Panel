@@ -329,7 +329,7 @@ def is_public_issuance_route(path: str, method: str) -> bool:
         return True
     if re.fullmatch(rf"/api/requests/{rid}/(?:verify|issue|issue-server)", path) and method == "POST":
         return True
-    if re.fullmatch(rf"/api/requests/{rid}/(?:leaf\\.crt|fullchain\\.pem|certificate)", path) and method == "GET":
+    if re.fullmatch(rf"/api/requests/{rid}/(?:leaf\.crt|fullchain\.pem|certificate)", path) and method == "GET":
         return True
     if re.fullmatch(rf"/api/downloads/{capability}", path) and method == "GET":
         return True
