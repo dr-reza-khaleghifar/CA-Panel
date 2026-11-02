@@ -75,3 +75,12 @@ def test_http_page_is_persian_read_only_trust_guide_with_current_ca_metadata():
         assert f'id="{platform}"' in page
     assert "certutil -hashfile ca-panel-root-ca.cer SHA256" in page
     assert "openssl x509 -in ca-panel-root-ca.pem" in page
+
+
+def test_bundled_https_proxies_overwrite_untrusted_forwarded_for():
+    for filename in ("Caddyfile", "Caddyfile.private"):
+        config = (ROOT / filename).read_text(encoding="utf-8")
+        assert "header_up X-Forwarded-For {remote_host}" in config
+
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    assert 'TRUST_PROXY_HEADERS: "${TRUST_PROXY_HEADERS:-1}"' in compose
