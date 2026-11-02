@@ -268,10 +268,16 @@ def test_public_portal_allows_anonymous_dns_verified_auto_issuance(client):
     # Remove the administrator session: the public portal must not depend on it.
     client.cookies.clear()
 
-    portal = client.get("/")
+    landing = client.get("/")
+    assert landing.status_code == 200
+    assert "landing.js" in landing.text
+    assert 'href="/issue"' in landing.text
+    assert "گواهی دیجیتال دامنه‌تان" in landing.text
+
+    portal = client.get("/issue")
     assert portal.status_code == 200
     assert "portal.js" in portal.text
-    assert "پرتال عمومی" in portal.text
+    assert 'id="domain-form"' in portal.text
     assert client.get("/admin", follow_redirects=False).status_code == 303
 
     # The legacy/admin API remains protected.
