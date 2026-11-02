@@ -14,6 +14,13 @@ trap cleanup EXIT
 
 mkdir -p "$tmp/onboarding"
 
+# Parse the complete production Caddyfile (including its HTTPS/ACME site)
+# without starting listeners or attempting an ACME issuance in CI.
+docker run --rm \
+  -e PANEL_DOMAIN=ca1.iravand.ir \
+  -v "$PWD/Caddyfile.private:/etc/caddy/Caddyfile:ro" \
+  caddy:2.10 caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
+
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
   -subj "/CN=ca1.iravand.ir" \
   -keyout "$tmp/root-test.key" \
