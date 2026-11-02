@@ -156,7 +156,6 @@ rm -i secrets/offline/pardis-root-key.pem secrets/offline/pardis-root-cert.pem
 rmdir secrets/offline
 ```
 
-نصاب اگر پوشه offline هنوز حاوی داده باشد، از اجرای عمومی خودداری می‌کند.
 
 ## ۶. بالا آوردن API روی localhost
 
