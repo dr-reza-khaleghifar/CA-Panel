@@ -1,8 +1,29 @@
 # API v1 (JSON)
 
-All examples presume the CA private-HTTPS deployment. Expose the panel publicly **only behind trusted HTTPS**. Content-Type for writes: `application/json`. Request IDs are unpredictable bearer-like identifiers: **do not share them**.
+All examples presume the CA private-HTTPS deployment. Expose the public portal **only behind trusted HTTPS**. Content-Type for writes: `application/json`. Public request IDs and one-time download URLs are unguessable bearer credentials: **do not share them**.
 
-## Authentication, session and CSRF (mandatory for issuance)
+## Public portal and anonymous issuance
+
+- `GET /` serves the public certificate-request portal. It does not require an administrator session.
+- `GET /admin` serves the administrator workspace and redirects unauthenticated visitors to `/login`.
+- Public issuance endpoints are under `/api/public/`. They do not require an admin cookie or CSRF token, but they are enabled only after the administrator has completed `python3 scripts/setup_admin.py` and configured an issuance policy. Without admin setup they return HTTP 503.
+- The default policy is restrictive: `CERT_ALLOWED_DOMAINS` must contain the approved DNS suffixes. To offer the service for any valid public DNS hostname, the administrator must explicitly opt in with `CERT_ALLOW_ANY_DOMAIN=1` (or confirm `*` during administrator setup). This is an operator decision; do not enable it without rate limiting and abuse response.
+- Every public issuance still requires a fresh, random DNS TXT challenge for the exact hostname. The TXT record is checked at verification and again immediately before signing. IP addresses, wildcard names and reserved/private suffixes remain rejected.
+- The server generates the private key and certificate after DNS verification. The private key is held only in process memory inside a one-time ZIP download; it is not stored in SQLite. The download URL is a secret bearer credential, valid for at most 10 minutes and one successful download.
+- Default request limits are 20 new challenges/hour/IP and 200/hour globally. For an internet-facing Caddy deployment, enable `TRUST_PROXY_HEADERS=1` only when all incoming traffic is forced through that trusted proxy and the API port remains private/localhost-bound; otherwise do not trust forwarded headers.
+
+### Public endpoints
+
+`POST /api/public/requests` accepts `{"domain":"example.org"}` and returns the request ID plus the TXT record name/value. `GET /api/public/requests/{request_id}` returns the request status and challenge details; treat the request ID as a secret. `POST /api/public/requests/{request_id}/verify` checks the DNS TXT record. Once verified, `POST /api/public/requests/{request_id}/issue-server` automatically generates and signs the certificate and returns public certificate links plus a one-time ZIP link. Public download and certificate routes are:
+
+- `GET /api/public/downloads/{capability}` — one-time private-key ZIP.
+- `GET /api/public/requests/{request_id}/leaf.crt` — public leaf certificate.
+- `GET /api/public/requests/{request_id}/fullchain.pem` — leaf plus Issuing CA.
+- `GET /api/issuer.pem` and `GET /api/ca.pem` — public Issuing and Root CA certificates.
+
+The manual CSR endpoint `POST /api/requests/{request_id}/issue` and all legacy `/api/requests` routes remain administrator-session protected.
+
+## Administrator authentication, session and CSRF
 
 Before issuing, the server operator must complete `python3 scripts/setup_admin.py` and configure the allowed certificate domain suffixes; otherwise protected endpoints fail closed. Browser login is `GET /login`; `POST /api/auth/login` accepts:
 
@@ -12,9 +33,9 @@ Before issuing, the server operator must complete `python3 scripts/setup_admin.p
 
 The response sets a Secure, HttpOnly, SameSite=Strict session cookie and returns `csrf_token`. The session is valid up to eight hours. The browser stores the token in memory only. To inspect it while authenticated, `GET /api/auth/status` returns authenticated status and the CSRF token for that session; it is `Cache-Control: no-store`. All state-changing protected endpoints require the `X-CSRF-Token` header matching the session. `POST /api/auth/logout` requires the same CSRF header and clears the session.
 
-**Every** `/api/requests` route and the one-time private ZIP download require a valid admin session. The public exceptions are `/healthz`, `/api/system`, `/api/ca.pem`, `/api/issuer.pem` and static assets. Authentication does **not** bypass ownership verification. The server also rejects any issuance domain outside `CERT_ALLOWED_DOMAINS` (403), including previously created requests whose domain is no longer allowed.
+The legacy `/api/requests` routes, including manual CSR signing and legacy ZIP download, require a valid admin session and CSRF token for state-changing operations. The separate `/api/public/` routes are the intentional anonymous customer workflow described above. Neither an admin session nor the public portal bypasses DNS ownership verification or the administrator-configured domain policy.
 
-Use the official web UI for interactive login. For non-browser automation, a human-approved session-cookie + CSRF workflow can be implemented, but do **not** put administrator passwords/MFA secrets in scripts, URLs or CI logs. This is not a public anonymous issuance API. Read [SECURITY_HARDENING.md](SECURITY_HARDENING.md) before integrating.
+Use the official web UI for interactive login. For non-browser automation, a human-approved session-cookie + CSRF workflow can be implemented, but do **not** put administrator passwords/MFA secrets in scripts, URLs or CI logs. The legacy routes are not an anonymous issuance API; use the separate `/api/public/` workflow for public DNS-verified issuance. Read [SECURITY_HARDENING.md](SECURITY_HARDENING.md) before integrating.
 
 
 
@@ -24,7 +45,9 @@ Returns `{ "status": "ok" }`. Does not require authentication.
 ### `GET /api/ca.pem`
 Returns public offline Root CA certificate (PEM). **Do not install blindly**; verify the fingerprint out-of-band.
 
-### `POST /api/requests`
+### `POST /api/requests` (administrator session required)
+
+The administrator-only legacy API retains the same request format. Public users should use `POST /api/public/requests`.
 
 ```json
 { "domain": "example.org" }
@@ -90,9 +113,9 @@ The previous browser UI automated key and CSR generation **locally**; that optio
 Using the Web Crypto API requires a secure browser context (HTTPS or local `localhost`). The browser exports a PKCS#8 RSA-2048 private key locally, creates and signs a PKCS#10 CSR with CN and exactly one DNS SAN, then downloads a local ZIP containing `.key`, `.crt`, `-fullchain.pem`, the issuing and root CA certificates, and a README. The ZIP assembly runs fully in the browser, not in the API container. The private key is unencrypted and does not survive a page reload.
 
 
-## Server-side issuance (default UI flow)
+## Server-side issuance
 
-`POST /api/requests/{request_id}/issue-server` — **no CSR payload required**. Validates the live DNS TXT challenge again, generates a new RSA private key (default 2048-bit) and matching CSR on the API server, signs a certificate (default 30 days; configurable via .env), and creates a one-time ZIP in **process memory only**. The PEM private key is not written to disk/SQLite. Returns HTTP 201:
+The administrator-only legacy route is `POST /api/requests/{request_id}/issue-server`. The public portal uses `POST /api/public/requests/{request_id}/issue-server`. Both accept no CSR payload, validate the live DNS TXT challenge again, generate a new RSA private key (default 2048-bit) and matching CSR on the API server, sign a certificate (default 30 days; configurable via .env), and create a one-time ZIP in **process memory only**. The PEM private key is not written to disk/SQLite. The public route returns public-prefixed artifact URLs. Returns HTTP 201:
 
 ```json
 {
@@ -100,17 +123,17 @@ Using the Web Crypto API requires a secure browser context (HTTPS or local `loca
   "serial_hex": "...",
   "expires_at": "2026-11-24T00:00:00+00:00",
   "download_expires_in_seconds": 600,
-  "download_url": "/api/downloads/<unguessable-bearer-token>",
-  "certificate_url": "/api/requests/<request_id>/leaf.crt",
-  "fullchain_url": "/api/requests/<request_id>/fullchain.pem",
+  "download_url": "/api/public/downloads/<unguessable-bearer-token>",
+  "certificate_url": "/api/public/requests/<request_id>/leaf.crt",
+  "fullchain_url": "/api/public/requests/<request_id>/fullchain.pem",
   "issuer_url": "/api/issuer.pem",
   "root_url": "/api/ca.pem"
 }
 ```
 
 - The capability URL includes a private key; treat it as a **secret bearer credential**. It may be downloaded **once** and expires after the configured TTL (**10 minutes maximum**), including if no one uses it. Do not log, share, bookmark, prefetch or preview it. Always serve the public panel over HTTPS; the local-only Docker binding is not a public endpoint.
-- `GET /api/downloads/{capability}` returns `application/zip` with `<domain>.key`, `<domain>.crt`, `<domain>-fullchain.pem`, `issuing-ca.pem`, `root-ca.pem`, and `README.txt`. Subsequent requests return HTTP 404. The ZIP is not password protected.
-- Public artifacts: `GET /api/requests/{request_id}/leaf.crt` (leaf only), `GET /api/requests/{request_id}/fullchain.pem` (leaf + issuer), `GET /api/issuer.pem`, `GET /api/ca.pem`. The older `/certificate` route remains for compatibility.
+- `GET /api/public/downloads/{capability}` (or the protected legacy `/api/downloads/{capability}`) returns `application/zip` with `<domain>.key`, `<domain>.crt`, `<domain>-fullchain.pem`, `issuing-ca.pem`, `root-ca.pem`, and `README.txt`. Subsequent requests return HTTP 404. The ZIP is not password protected.
+- Public artifacts: `GET /api/public/requests/{request_id}/leaf.crt` (leaf only), `GET /api/public/requests/{request_id}/fullchain.pem` (leaf + issuer), `GET /api/issuer.pem`, `GET /api/ca.pem`. The older `/certificate` route remains for compatibility.
 - At most 100 unexpired private ZIPs are retained in process memory. Restarting the container drops all pending ZIPs. If the secret link is consumed/lost, start a **new DNS request**; the original key cannot be recovered.
 - Existing manual CSR issuance `POST /issue` remains available for users who do not want their keys generated by the CA server.
 
