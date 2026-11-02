@@ -353,7 +353,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) is not None
             or re.fullmatch(r"/api/public/downloads/[A-Za-z0-9_-]{1,100}", path) is not None
         )
-        public = (path in ("/", "/healthz", "/login", "/api/system", "/api/ca.pem",
+        public = (path in ("/", "/issue", "/healthz", "/login", "/api/system", "/api/ca.pem",
                            "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
                   or path.startswith("/static/") or public_issuance_api)
         csrf = (get_session(settings.db_path, request.cookies.get(SESSION_COOKIE),
@@ -430,7 +430,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def home():
-        """Public certificate request portal; no administrator session required."""
+        """Public product landing page; no administrator session required."""
+        return FileResponse(BASE / "static" / "landing.html", media_type="text/html")
+
+    @app.get("/issue", include_in_schema=False)
+    def certificate_request_page():
+        """Focused public certificate issuance flow; no administrator session required."""
         return FileResponse(BASE / "static" / "portal.html", media_type="text/html")
 
     @app.get("/admin", include_in_schema=False)
