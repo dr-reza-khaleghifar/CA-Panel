@@ -210,8 +210,8 @@ def test_write_env_can_target_test_environment_without_touching_live_env(tmp_pat
 
 def test_public_https_starts_caddy_without_signing_a_private_panel_leaf(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
-        "CA_KEY_PASSWORD='knownPassword123'\\n"
-        "PANEL_DOMAIN=ca1.iravand.ir\\n"
+        "CA_KEY_PASSWORD='knownPassword123'\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\n"
     ))
     monkeypatch.setattr(sys, "argv", ["install.py", "--public-https"])
     commands = []
@@ -229,9 +229,9 @@ def test_public_https_starts_caddy_without_signing_a_private_panel_leaf(tmp_path
 
 def test_legacy_private_https_flag_is_an_alias_for_public_acme_tls(tmp_path, monkeypatch):
     prepare(tmp_path, monkeypatch, existing_env=(
-        "CA_KEY_PASSWORD='knownPassword123'\\n"
-        "PANEL_DOMAIN=ca1.iravand.ir\\n"
-        "PANEL_TLS_HOST_DIR=./secrets/tls\\n"
+        "CA_KEY_PASSWORD='knownPassword123'\n"
+        "PANEL_DOMAIN=ca1.iravand.ir\n"
+        "PANEL_TLS_HOST_DIR=./secrets/tls\n"
     ))
     calls = []
     monkeypatch.setattr(sys, "argv", ["install.py", "--private-https"])
