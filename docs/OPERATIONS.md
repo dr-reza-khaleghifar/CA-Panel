@@ -177,7 +177,7 @@ Settings and defaults:
 | `MAX_VERIFICATIONS=10` | DNS verification attempts per request: 1–100 |
 | `DOWNLOAD_TTL_SECONDS=600` | One-time private key ZIP link: 60–600 seconds (no extension beyond 10 minutes) |
 | `MAX_PENDING_DOWNLOADS=100` | At most 1–100 live ZIPs in RAM |
-| `DNS_RESOLVERS`, `TRUST_PROXY_HEADERS`, `PANEL_DOMAIN` | Existing DNS, trusted proxy and HTTPS hosting options |
+| `DNS_RESOLVERS`, `PANEL_DOMAIN` | DNS resolver and public HTTPS hosting options; production Compose configures the Caddy trusted-proxy boundary itself |
 
 **Important:** Root/Issuing CA cryptographic names, validity and trust are part of existing X.509 certificates and are **not** changed by editing `.env`. The panel reads and displays those actual values. Never put an offline Root private key into the container; never commit `.env`. Invalid settings fail early on API startup. Changing settings does **not** require re-creating the CA keys; it requires restarting the container.
 
@@ -204,10 +204,23 @@ For **new CA creation only**, the secure administrative workstation can read the
 **CA subjects are signed into certificates.** Altering their env fields after CA provisioning does not change an existing issuer/root certificate. Changing the root identity or cryptographic properties requires explicit CA migration, trust-anchor distribution, and protection of issuance history. The runtime `/api/system` endpoint reports the actual X.509 subjects and public root fingerprint, not hypothetical values from env.
 
 
-## Serve the panel on HTTPS 443 with your own CA certificate
+## Serve the public portal on HTTPS 443 with Caddy/ACME
 
-A separate Docker Compose profile `private-tls` starts `caddy-private`, configured by [Caddyfile.private](../Caddyfile.private). It binds TCP/UDP :443, mounts **only** leaf TLS key + fullchain from `PANEL_TLS_HOST_DIR` as read-only, and reverse-proxies to `api:8000`. The original ACME `public` profile remains available but is mutually exclusive because both bind :443. The API still binds localhost :8080 for administrative bootstrap.
+The production `caddy-private` service and legacy Compose profile name `private-tls` are retained for deployment compatibility, but the portal's own HTTPS certificate is now managed by Caddy/ACME. It is **not** signed by the CA-Panel private CA and no local leaf certificate or `PANEL_TLS_HOST_DIR` mount is required.
 
-**Important**: Use an actual `serverAuth` leaf with SAN = `PANEL_DOMAIN`, signed by your own Issuing CA. Never expose Issuing/Root signing private keys to Caddy. Provision the one-time certificate ZIP using `python3 scripts/setup_private_tls.py --zip /path/to/ca1.iravand.ir-certificates.zip`; it checks trust against the deployed CA Root, domain SAN, leaf/private key match and expiration using host OpenSSL. Then `bash install.sh --private-https` builds/starts both API and Caddy and verifies the TLS handshake on 127.0.0.1:443 with the private Root CA trust anchor.
+Requirements:
+- `PANEL_DOMAIN` must resolve publicly to this server.
+- TCP 80 and TCP 443 must be reachable from the public internet. Port 80 serves only the static Root CA trust guide/downloads plus ACME HTTP-01 challenges.
+- The API remains bound to `127.0.0.1:8080`; do not publish it publicly.
+- The Compose service stores ACME state in the persistent `caddy_private_data` volume and renews certificates automatically.
 
-**No automatic leaf renewal**: reissue with a fresh DNS proof before leaf expiry; rerun setup with `--replace` and restart `caddy-private`. See [PRIVATE_HTTPS.md](PRIVATE_HTTPS.md) for complete step-by-step instructions and browser trust limitations.
+Start or update the portal:
+
+```bash
+bash install.sh --public-https
+# The old --private-https flag is still accepted as an alias.
+```
+
+The installer waits for a publicly trusted HTTPS health check. If it fails, inspect `docker compose --profile private-tls logs --tail=100 caddy-private`, DNS A/AAAA records and external reachability of ports 80/443. Do not use `--insecure`, a private Root CA trust override or a manually signed private TLS leaf to bypass a failed ACME challenge.
+
+Certificates issued to user domains remain private-CA certificates and still require the requester/managed client to trust the Root CA separately. This portal HTTPS change does not change Root/Issuing CA keys or issued user certificates.
