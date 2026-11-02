@@ -97,13 +97,13 @@ docker compose --env-file "$HOME/CA-Panel-production.env" \
 curl --noproxy '*' --resolve ca1.iravand.ir:443:127.0.0.1 \
   https://ca1.iravand.ir/healthz
 curl --noproxy '*' --resolve ca1.iravand.ir:443:127.0.0.1 \
-  -o /dev/null -w 'Public portal HTTP: %{http_code}\\n' \
+  -o /dev/null -w 'Public portal HTTP: %{http_code}\n' \
   https://ca1.iravand.ir/
 curl --noproxy '*' --resolve ca1.iravand.ir:443:127.0.0.1 \
-  -o /dev/null -w 'Admin queue unauthenticated: %{http_code}\\n' \
+  -o /dev/null -w 'Admin queue unauthenticated: %{http_code}\n' \
   https://ca1.iravand.ir/admin/requests
 curl --noproxy '*' --resolve ca1.iravand.ir:443:127.0.0.1 \
-  -o /dev/null -w 'Unknown request capability: %{http_code}\\n' \
+  -o /dev/null -w 'Unknown request capability: %{http_code}\n' \
   https://ca1.iravand.ir/api/requests/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 ```
 
