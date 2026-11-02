@@ -73,7 +73,7 @@ done
 
 [[ "$(status "$base/")" == 200 ]] || { echo "Guide not available on HTTP root"; exit 1; }
 guide="$(curl --noproxy '*' --silent --show-error -H "Host: $host" "$base/")"
-[[ "$guide" == *"مرکز راهنمای اعتماد و گواهی CA-Panel"* ]] || { echo "Guide HTML missing"; exit 1; }
+[[ "$guide" == *"مرکز اعتماد و گواهی CA-Panel"* ]] || { echo "Guide HTML missing"; exit 1; }
 [[ "$guide" == *"0E:3B:D2:5A:45:8A:0A:7E"* ]] || { echo "Current Root CA fingerprint missing"; exit 1; }
 [[ "$guide" == *'src="/trust.js"'* ]] || { echo "Local guide script missing"; exit 1; }
 
