@@ -275,3 +275,49 @@ def test_without_all_domains_flag_empty_allowlist_fails_closed(secured):
     assert not domain_permitted("some-other.net", (), allow_any=False)
     assert not domain_permitted("some-other.net", ("iravand.ir",), allow_any=False)
     assert domain_permitted("deep.other.net", (), allow_any=True)
+
+
+def test_public_mutations_reject_cross_origin_requests(secured):
+    client, _, _ = secured
+    denied = client.post("/api/requests", json={"domain": "example.org"},
+                         headers={"Origin": "https://attacker.example", "Sec-Fetch-Site": "cross-site"})
+    assert denied.status_code == 403
+    allowed = client.post("/api/requests", json={"domain": "example.org"},
+                          headers={"Origin": "https://testserver", "Sec-Fetch-Site": "same-origin"})
+    assert allowed.status_code == 201
+
+
+def test_existing_database_migrates_review_columns_without_losing_issued_certificates(tmp_path):
+    from app.main import init_db, connect
+
+    db = tmp_path / "existing" / "ca-panel.sqlite3"
+    db.parent.mkdir(parents=True)
+    with sqlite3.connect(db) as con:
+        con.execute("""
+            CREATE TABLE challenges (
+                id TEXT PRIMARY KEY, domain TEXT NOT NULL, token TEXT NOT NULL,
+                client_ip TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+                verification_attempts INTEGER NOT NULL DEFAULT 0, verified_at INTEGER,
+                issued_at INTEGER, cert_pem TEXT, serial_hex TEXT
+            )
+        """)
+        con.execute(
+            "INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at,verified_at,issued_at,cert_pem,serial_hex) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            ("old-issued-request", "example.org", "dns-token", "127.0.0.1", 10, 9999999999,
+             11, 12, "PUBLIC CERTIFICATE PEM", "abcd"),
+        )
+        con.execute(
+            "INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at) VALUES(?,?,?,?,?,?)",
+            ("old-pending-request", "example.net", "other-token", "127.0.0.1", 20, 9999999999),
+        )
+    init_db(db)
+    with connect(db) as con:
+        issued = con.execute("SELECT approval_status, cert_pem, serial_hex FROM challenges WHERE id=?",
+                             ("old-issued-request",)).fetchone()
+        pending = con.execute("SELECT approval_status FROM challenges WHERE id=?",
+                              ("old-pending-request",)).fetchone()
+    assert issued["approval_status"] == "approved"
+    assert issued["cert_pem"] == "PUBLIC CERTIFICATE PEM"
+    assert issued["serial_hex"] == "abcd"
+    assert pending["approval_status"] == "pending"
