@@ -276,6 +276,7 @@ def test_public_portal_allows_anonymous_dns_verified_auto_issuance(client):
 
     # The legacy/admin API remains protected.
     assert client.post("/api/requests", json={"domain": "example.org"}).status_code == 401
+    assert client.get("/api/public/unlisted", follow_redirects=False).status_code == 401
 
     created = client.post("/api/public/requests", json={"domain": "example.org"})
     assert created.status_code == 201, created.text
