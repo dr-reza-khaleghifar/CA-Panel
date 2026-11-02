@@ -1,4 +1,4 @@
-"""Offline regression checks for the own-CA HTTPS :443 profile and ZIP provisioning.
+"""Offline regression checks for public portal ACME TLS and private issued-domain ZIP provisioning.
 
 These tests issue throwaway CA/leaf certificates under tmp_path; no private key,
 external DNS or Docker daemon is touched.
@@ -55,22 +55,22 @@ def make_bundle(tmp_path: Path, *, domain: str = DOMAIN):
     return z
 
 
-def test_private_tls_caddy_profile_and_manual_certificate_config():
+def test_public_acme_caddy_profile_and_private_bundle_are_separate():
     root = Path(__file__).resolve().parents[1]
     caddyfile = (root / "Caddyfile.private").read_text(encoding="utf-8")
     assert "https://{$PANEL_DOMAIN}" in caddyfile
-    assert "tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem" in caddyfile
+    assert "tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem" not in caddyfile
     assert "reverse_proxy api:8000" in caddyfile
+    assert "header_up X-Real-IP {remote_host}" in caddyfile
     assert "auto_https disable_redirects" in caddyfile
     assert "tls internal" not in caddyfile
     compose = (root / "compose.yaml").read_text(encoding="utf-8")
     assert 'profiles: ["private-tls"]' in compose
     assert "caddy-private:" in compose
     assert 'PANEL_TLS_BIND_IP:-0.0.0.0}:443:443' in compose
-    assert ":/etc/caddy/tls:ro" in compose
-    assert "PANEL_TLS_HOST_DIR" in compose
-    assert "secrets/tls" in (root / ".env.example").read_text(encoding="utf-8")
-
+    assert ":/etc/caddy/tls:ro" not in compose
+    assert "PANEL_TLS_HOST_DIR" not in compose
+    assert "PANEL_TLS_HOST_DIR" not in (root / ".env.example").read_text(encoding="utf-8")
 
 def test_verified_own_ca_zip_installs_leaf_and_key_only(tmp_path, monkeypatch):
     archive = make_bundle(tmp_path)

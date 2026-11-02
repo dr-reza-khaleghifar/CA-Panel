@@ -2,7 +2,7 @@
 
 ## Security hardening and protected issuance (current release)
 
-**The issuance API is no longer anonymous.** Before exposing this version, enroll the operator using `python3 scripts/setup_admin.py` and deploy with `bash install.sh --private-https`. Authenticated requests require TOTP MFA, a server-side opaque session and CSRF protection; any issuance domain must be on the `CERT_ALLOWED_DOMAINS` allowlist and must still pass DNS TXT verification. Admin login is `/login`. No enrollment means issuance is **fail-closed** with HTTP 503.
+**Public requests and private signing are separate.** Visitors can submit a public DNS hostname, prove control with a per-request TXT challenge and check status using the unguessable request ID. A certificate is not signed until an authenticated administrator reviews and approves the verified request. Admin review APIs require TOTP MFA, a server-side session and CSRF protection. Enroll the operator using `python3 scripts/setup_admin.py`; admin login is `/login` and the review queue is `/admin/requests`. Without admin enrollment, new public request creation and signing fail closed with HTTP 503.
 
 Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING.md](SECURITY_HARDENING.md). The software currently supports **one admin**, not enterprise RBAC or HSM-based CA security. Restrict network edge and use independent security review before production use.
 
@@ -19,10 +19,10 @@ Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING
 
 - Place service behind HTTPS reverse proxy and do not publish port 8000 publicly. Default binding is `127.0.0.1:8080`.
 - Set `APP_UID`/`APP_GID` to host UID/GID that owns `data/` and `secrets/online/`. On Linux use `id -u`, `id -g`. Ensure `chmod 700 secrets/online`, `chmod 600 secrets/online/issuer-key.pem`, and `chmod 600 .env` (mounted files readable by the application UID). On SELinux hosts, additional volume labeling may be required.
-- Never enable `TRUST_PROXY_HEADERS=1` unless every remote caller passes through a trusted proxy that sanitizes incoming `X-Forwarded-For`. If set, all direct access must be administratively controlled. Defaults to disabled, which can group public clients behind one reverse-proxy IP for rate limiting.
+- The production Compose profile sets `TRUST_PROXY_HEADERS=1` because the API is bound to `127.0.0.1:8080` and all internet traffic reaches it through Caddy. Caddy explicitly overwrites `X-Real-IP` with the socket peer address; the application accepts only that header. Never expose the API port or allow untrusted callers to bypass Caddy. If you change the network topology, revisit this trust boundary before deployment.
 - Provide a reliable system DNS resolver. DNS TXT propagation and split-horizon DNS may affect verification. DNS spoofing/poisoning can undermine this basic model; use a secure resolver. DNSSEC is not checked.
-- The issuance API now requires a single admin password and TOTP MFA, session and CSRF, plus an explicit domain allowlist. Production internet exposure still needs edge firewall/VPN, external monitoring, operational review and abuse controls. A challenge is necessary to obtain each certificate, but a large anonymous CA can still be abused.
-- For user-browser trusted HTTPS, use public CA/ACME instead. Installing private CA roots on client machines grants broad trust; do so only under managed policy.
+- Public request creation is anonymous but rate-limited and requires a unique DNS TXT proof. The administrator approval/rejection APIs require password + TOTP, session and CSRF. The current domain allowlist policy is checked at request time, admin approval and signing time. Production exposure still needs edge firewall, monitoring, abuse review and incident response. A publicly reachable private CA can still be abused if the operator approves malicious requests.
+- The portal itself uses Caddy/ACME for browser-trusted HTTPS. Certificates issued to user domains remain private-CA certificates; installing the private Root on clients grants broad trust and must be done only under an explicit managed policy.
 
 ## Observability & backup
 
@@ -48,7 +48,7 @@ openssl x509 -in secrets/online/root-cert.pem -noout -fingerprint -sha256
 
 ## Limits and next steps
 
-- Single-admin MFA authentication exists, but no multi-tenant RBAC/SSO, cancellation, automatic renewal, revocation, CRL/OCSP, ACME, HSM or formal CA compliance.
+- Single-admin MFA authentication exists, but no multi-tenant RBAC/SSO, request cancellation, automatic renewal of customer certificates, revocation, CRL/OCSP, ACME customer issuance, HSM or formal CA compliance. Caddy/ACME renews only the portal's own HTTPS certificate.
 - DNS verification requests count against a one-hour challenge lifetime and a per-request verification attempt limit.
 - Current default certificate lifetime is 30 days; intermediate is 365 days, root is ~10 years.
 - Designed for low-cost pilot/private usage. Conduct an independent security audit before broader deployment.
@@ -177,7 +177,7 @@ Settings and defaults:
 | `MAX_VERIFICATIONS=10` | DNS verification attempts per request: 1–100 |
 | `DOWNLOAD_TTL_SECONDS=600` | One-time private key ZIP link: 60–600 seconds (no extension beyond 10 minutes) |
 | `MAX_PENDING_DOWNLOADS=100` | At most 1–100 live ZIPs in RAM |
-| `DNS_RESOLVERS`, `TRUST_PROXY_HEADERS`, `PANEL_DOMAIN` | Existing DNS, trusted proxy and HTTPS hosting options |
+| `DNS_RESOLVERS`, `PANEL_DOMAIN` | DNS resolver and public HTTPS hosting options; production Compose configures the Caddy trusted-proxy boundary itself |
 
 **Important:** Root/Issuing CA cryptographic names, validity and trust are part of existing X.509 certificates and are **not** changed by editing `.env`. The panel reads and displays those actual values. Never put an offline Root private key into the container; never commit `.env`. Invalid settings fail early on API startup. Changing settings does **not** require re-creating the CA keys; it requires restarting the container.
 
@@ -204,10 +204,23 @@ For **new CA creation only**, the secure administrative workstation can read the
 **CA subjects are signed into certificates.** Altering their env fields after CA provisioning does not change an existing issuer/root certificate. Changing the root identity or cryptographic properties requires explicit CA migration, trust-anchor distribution, and protection of issuance history. The runtime `/api/system` endpoint reports the actual X.509 subjects and public root fingerprint, not hypothetical values from env.
 
 
-## Serve the panel on HTTPS 443 with your own CA certificate
+## Serve the public portal on HTTPS 443 with Caddy/ACME
 
-A separate Docker Compose profile `private-tls` starts `caddy-private`, configured by [Caddyfile.private](../Caddyfile.private). It binds TCP/UDP :443, mounts **only** leaf TLS key + fullchain from `PANEL_TLS_HOST_DIR` as read-only, and reverse-proxies to `api:8000`. The original ACME `public` profile remains available but is mutually exclusive because both bind :443. The API still binds localhost :8080 for administrative bootstrap.
+The production `caddy-private` service and legacy Compose profile name `private-tls` are retained for deployment compatibility, but the portal's own HTTPS certificate is now managed by Caddy/ACME. It is **not** signed by the CA-Panel private CA and no local leaf certificate or `PANEL_TLS_HOST_DIR` mount is required.
 
-**Important**: Use an actual `serverAuth` leaf with SAN = `PANEL_DOMAIN`, signed by your own Issuing CA. Never expose Issuing/Root signing private keys to Caddy. Provision the one-time certificate ZIP using `python3 scripts/setup_private_tls.py --zip /path/to/ca1.iravand.ir-certificates.zip`; it checks trust against the deployed CA Root, domain SAN, leaf/private key match and expiration using host OpenSSL. Then `bash install.sh --private-https` builds/starts both API and Caddy and verifies the TLS handshake on 127.0.0.1:443 with the private Root CA trust anchor.
+Requirements:
+- `PANEL_DOMAIN` must resolve publicly to this server.
+- TCP 80 and TCP 443 must be reachable from the public internet. Port 80 serves only the static Root CA trust guide/downloads plus ACME HTTP-01 challenges.
+- The API remains bound to `127.0.0.1:8080`; do not publish it publicly.
+- The Compose service stores ACME state in the persistent `caddy_private_data` volume and renews certificates automatically.
 
-**No automatic leaf renewal**: reissue with a fresh DNS proof before leaf expiry; rerun setup with `--replace` and restart `caddy-private`. See [PRIVATE_HTTPS.md](PRIVATE_HTTPS.md) for complete step-by-step instructions and browser trust limitations.
+Start or update the portal:
+
+```bash
+bash install.sh --public-https
+# The old --private-https flag is still accepted as an alias.
+```
+
+The installer waits for a publicly trusted HTTPS health check. If it fails, inspect `docker compose --profile private-tls logs --tail=100 caddy-private`, DNS A/AAAA records and external reachability of ports 80/443. Do not use `--insecure`, a private Root CA trust override or a manually signed private TLS leaf to bypass a failed ACME challenge.
+
+Certificates issued to user domains remain private-CA certificates and still require the requester/managed client to trust the Root CA separately. This portal HTTPS change does not change Root/Issuing CA keys or issued user certificates.

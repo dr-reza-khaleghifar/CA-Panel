@@ -54,20 +54,31 @@ def test_password_hash_and_totp_validation():
     assert matching_totp_step(seed, "00000", now) is None
 
 
-def test_anonymous_cannot_issue_read_challenges_or_download_secrets(secured):
+def test_anonymous_can_submit_public_request_but_admin_actions_stay_protected(secured):
     client, _, _ = secured
     assert client.get("/healthz").status_code == 200
+    trust = client.get("/trust")
+    assert trust.status_code == 200
+    assert "'unsafe-inline'" in trust.headers["content-security-policy"]
+    assert client.get("/trust.js").status_code == 200
     assert client.get("/api/ca.pem").status_code == 200
     assert client.get("/api/system").status_code == 200
     assert client.get("/api/auth/status").json()["authenticated"] is False
     page = client.get("/")
-    assert page.status_code == 303 and page.headers["location"] == "/login"
+    assert page.status_code == 200 and "درخواست گواهی جدید" in page.text
+    assert client.get("/admin", follow_redirects=False).status_code == 303
+    assert client.get("/admin/requests", follow_redirects=False).status_code == 303
     assert client.get("/login").status_code == 200
-    assert client.post("/api/requests", json={"domain": "example.org"}).status_code == 401
-    assert client.get("/api/requests/guess").status_code == 401
-    assert client.post("/api/requests/guess/verify").status_code == 401
-    assert client.post("/api/requests/guess/issue-server").status_code == 401
-    assert client.get("/api/downloads/guessedtoken").status_code == 401
+    created = client.post("/api/requests", json={"domain": "example.org"})
+    assert created.status_code == 201, created.text
+    rid = created.json()["request_id"]
+    assert len(rid) == 32
+    assert client.get("/api/requests/" + rid).status_code == 200
+    assert client.post("/api/requests/" + rid + "/verify").status_code == 200
+    assert client.post("/api/requests/" + rid + "/issue-server").status_code == 409
+    assert client.get("/api/admin/requests").status_code == 401
+    assert client.get("/api/requests/" + ("A" * 32)).status_code == 404
+    assert client.get("/api/downloads/" + ("A" * 43)).status_code == 404
 
 
 def test_secure_cookie_csrf_and_logout(secured):
@@ -81,17 +92,21 @@ def test_secure_cookie_csrf_and_logout(secured):
     csrf = result.json()["csrf_token"]
     assert len(csrf) > 32
     assert client.get("/api/auth/status").json()["authenticated"] is True
-    assert client.post("/api/requests", json={"domain":"example.org"}).status_code == 403
-    assert client.post("/api/requests", json={"domain":"example.org"},
+    created = client.post("/api/requests", json={"domain":"example.org"})
+    assert created.status_code == 201, created.text
+    rid = created.json()["request_id"]
+    assert client.post("/api/requests/" + rid + "/verify").status_code == 200
+    assert client.post("/api/admin/requests/" + rid + "/approve").status_code == 403
+    assert client.post("/api/admin/requests/" + rid + "/approve",
                        headers={"X-CSRF-Token": "forged"}).status_code == 403
-    allowed = client.post("/api/requests", json={"domain":"example.org"},
+    allowed = client.post("/api/admin/requests/" + rid + "/approve",
                           headers={"X-CSRF-Token": csrf})
-    assert allowed.status_code == 201, allowed.text
+    assert allowed.status_code == 200, allowed.text
     assert client.post("/api/auth/logout").status_code == 403
     assert client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
     assert client.get("/api/auth/status").json()["authenticated"] is False
-    assert client.post("/api/requests", json={"domain":"example.org"},
-                       headers={"X-CSRF-Token": csrf}).status_code == 401
+    assert client.post("/api/requests", json={"domain":"example.org"}).status_code == 201
+    assert client.get("/api/admin/requests").status_code == 401
 
 
 def test_totp_cannot_be_replayed_after_success(secured):
@@ -110,12 +125,9 @@ def test_allowlist_is_strict_domain_boundary(secured):
     assert not domain_permitted("evil-iravand.ir", suffixes)
     assert not domain_permitted("attacker.example.net", suffixes)
     assert login(client, seed).status_code == 200
-    csrf = client.get("/api/auth/status").json()["csrf_token"]
-    denied = client.post("/api/requests", json={"domain":"attacker.example.net"},
-                         headers={"X-CSRF-Token": csrf})
+    denied = client.post("/api/requests", json={"domain":"attacker.example.net"})
     assert denied.status_code == 403
-    allowed = client.post("/api/requests", json={"domain":"app.iravand.ir"},
-                          headers={"X-CSRF-Token": csrf})
+    allowed = client.post("/api/requests", json={"domain":"app.iravand.ir"})
     assert allowed.status_code == 201
 
 
@@ -171,7 +183,7 @@ def test_unenrolled_admin_fail_closed_and_secrets_never_public(tmp_path):
             "username":"admin", "password":"unconfigured-password-123",
             "code":"123456"}).status_code == 503
         assert client.post("/api/requests", json={"domain":"example.org"}).status_code == 503
-        assert client.get("/api/downloads/guess").status_code == 503
+        assert client.get("/api/downloads/" + ("A" * 43)).status_code == 404
         assert "ADMIN_PASSWORD_HASH" not in client.get("/api/system").text
         assert "password" not in client.get("/api/system").text.lower()
 
@@ -220,7 +232,7 @@ def test_all_domains_opt_in_requires_admin_mfa_and_dns_ownership(tmp_path):
     api = create_app(settings)
     api.state.dns_checker = lambda *_: False
     with TestClient(api, base_url="https://testserver") as client:
-        assert client.post("/api/requests", json={"domain": "other.example.com"}).status_code == 401
+        assert client.post("/api/requests", json={"domain": "other.example.com"}).status_code == 201
         assert login(client, seed).status_code == 200
         csrf = client.get("/api/auth/status").json()["csrf_token"]
         headers = {"X-CSRF-Token": csrf}
@@ -229,20 +241,21 @@ def test_all_domains_opt_in_requires_admin_mfa_and_dns_ownership(tmp_path):
         first = client.post("/api/requests", json={"domain": "a.example.org"}, headers=headers)
         assert first.status_code == 201, first.text
         rid = first.json()["request_id"]
-        # No certificate may be signed before real DNS TXT proof (even in all-domains mode).
-        assert client.post(f"/api/requests/{rid}/issue-server", headers=headers).status_code == 403
+        # DNS proof is mandatory, and signing additionally waits for admin approval.
+        assert client.post(f"/api/requests/{rid}/issue-server", headers=headers).status_code == 409
         assert client.post(f"/api/requests/{rid}/verify", headers=headers).status_code == 422
         api.state.dns_checker = lambda *_: True
         assert client.post(f"/api/requests/{rid}/verify", headers=headers).status_code == 200
+        assert client.post(f"/api/admin/requests/{rid}/approve", headers=headers).status_code == 200
         api.state.dns_checker = lambda *_: False
-        assert client.post(f"/api/requests/{rid}/issue-server", headers=headers).status_code == 403
+        assert client.post(f"/api/requests/{rid}/issue-server").status_code == 403
         api.state.dns_checker = lambda *_: True
-        issued = client.post(f"/api/requests/{rid}/issue-server", headers=headers)
+        issued = client.post(f"/api/requests/{rid}/issue-server")
         assert issued.status_code == 201, issued.text
         assert issued.json()["domain"] == "a.example.org"
-        # No free-form, unauthenticated download even with the capability URL.
+        # The one-time download URL is a bearer capability held by the requester.
         client.cookies.clear()
-        assert client.get(issued.json()["download_url"]).status_code == 401
+        assert client.get(issued.json()["download_url"]).status_code == 200
 
 
 def test_all_domains_flag_defaults_off_and_rejects_invalid_configuration(monkeypatch):
@@ -266,3 +279,49 @@ def test_without_all_domains_flag_empty_allowlist_fails_closed(secured):
     assert not domain_permitted("some-other.net", (), allow_any=False)
     assert not domain_permitted("some-other.net", ("iravand.ir",), allow_any=False)
     assert domain_permitted("deep.other.net", (), allow_any=True)
+
+
+def test_public_mutations_reject_cross_origin_requests(secured):
+    client, _, _ = secured
+    denied = client.post("/api/requests", json={"domain": "example.org"},
+                         headers={"Origin": "https://attacker.example", "Sec-Fetch-Site": "cross-site"})
+    assert denied.status_code == 403
+    allowed = client.post("/api/requests", json={"domain": "example.org"},
+                          headers={"Origin": "https://testserver", "Sec-Fetch-Site": "same-origin"})
+    assert allowed.status_code == 201
+
+
+def test_existing_database_migrates_review_columns_without_losing_issued_certificates(tmp_path):
+    from app.main import init_db, connect
+
+    db = tmp_path / "existing" / "ca-panel.sqlite3"
+    db.parent.mkdir(parents=True)
+    with sqlite3.connect(db) as con:
+        con.execute("""
+            CREATE TABLE challenges (
+                id TEXT PRIMARY KEY, domain TEXT NOT NULL, token TEXT NOT NULL,
+                client_ip TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+                verification_attempts INTEGER NOT NULL DEFAULT 0, verified_at INTEGER,
+                issued_at INTEGER, cert_pem TEXT, serial_hex TEXT
+            )
+        """)
+        con.execute(
+            "INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at,verified_at,issued_at,cert_pem,serial_hex) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
+            ("old-issued-request", "example.org", "dns-token", "127.0.0.1", 10, 9999999999,
+             11, 12, "PUBLIC CERTIFICATE PEM", "abcd"),
+        )
+        con.execute(
+            "INSERT INTO challenges(id,domain,token,client_ip,created_at,expires_at) VALUES(?,?,?,?,?,?)",
+            ("old-pending-request", "example.net", "other-token", "127.0.0.1", 20, 9999999999),
+        )
+    init_db(db)
+    with connect(db) as con:
+        issued = con.execute("SELECT approval_status, cert_pem, serial_hex FROM challenges WHERE id=?",
+                             ("old-issued-request",)).fetchone()
+        pending = con.execute("SELECT approval_status FROM challenges WHERE id=?",
+                              ("old-pending-request",)).fetchone()
+    assert issued["approval_status"] == "approved"
+    assert issued["cert_pem"] == "PUBLIC CERTIFICATE PEM"
+    assert issued["serial_hex"] == "abcd"
+    assert pending["approval_status"] == "pending"

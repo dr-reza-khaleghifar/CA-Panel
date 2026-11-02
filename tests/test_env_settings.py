@@ -122,6 +122,8 @@ def test_public_config_from_real_ca_and_configured_policy(tmp_path, monkeypatch)
         assert 0 < created.json()["expires_at"] - time.time() <= 600
         rid = created.json()["request_id"]
         assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+        approved = client.post(f"/api/admin/requests/{rid}/approve")
+        assert approved.status_code == 200, approved.text
         response = client.post(f"/api/requests/{rid}/issue-server")
         assert response.status_code == 201, response.text
         data = response.json()

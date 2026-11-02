@@ -1,10 +1,9 @@
 {
-    # Private CA TLS is supplied from files; no ACME attempts and no HTTP:80 redirect.
+    # Publicly trusted HTTPS for the portal; redirects stay disabled so the HTTP trust guide remains reachable.
     auto_https disable_redirects
 }
 
 https://{$PANEL_DOMAIN} {
-    tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem
     encode zstd gzip
 
     # Only the two public Root CA encodings are served from this static directory.
@@ -24,7 +23,10 @@ https://{$PANEL_DOMAIN} {
     }
 
     handle {
-        reverse_proxy api:8000
+        reverse_proxy api:8000 {
+            # Caddy overwrites this header with the actual peer IP for API rate limiting.
+            header_up X-Real-IP {remote_host}
+        }
     }
 }
 

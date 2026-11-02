@@ -89,7 +89,7 @@ def create_ca(output: Path, root_password: bytes, issuer_password: bytes,
     secure_write(online / profile.issuer_key_file, issuer_key.private_bytes(encoding, pem_format, serialization.BestAvailableEncryption(issuer_password)))
     secure_write(online / profile.issuer_cert_file, issuer.public_bytes(encoding))
     secure_write(online / profile.root_cert_file, root.public_bytes(encoding))
-    print("CA initialized. Store secrets/offline OFFLINE (never on the application server).")
+    print("CA initialized. Prefer separate offline storage for secrets/offline; if temporarily kept on this host, preserve 0700 directory/0600 encrypted-key permissions and never mount it into the API container.")
     print("Root certificate SHA256:", root.fingerprint(hashes.SHA256()).hex().upper())
     print("Issuer expiration:", issuer.not_valid_after_utc.isoformat())
 

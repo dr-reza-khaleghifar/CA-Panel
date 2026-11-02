@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090f1c">
+<title>بررسی درخواست‌ها | پنل مدیریت CA</title>
+<link rel="stylesheet" href="/static/style.css?v=5"><link rel="stylesheet" href="/static/v6.css?v=4"><link rel="stylesheet" href="/static/admin-requests.css?v=1">
+<script src="/static/admin-requests.js?v=1" defer></script>
+</head>
+<body class="admin-requests-page">
+<main class="admin-requests-shell">
+<header class="admin-requests-header">
+<div><span class="section-kicker">ADMIN CONTROL / REVIEW QUEUE</span><h1>بررسی درخواست‌های عمومی</h1><p>فقط درخواست‌های دارای اثبات DNS را تأیید کنید. صدور پس از تأیید مدیر در اختیار صاحب پیوند پیگیری قرار می‌گیرد.</p></div>
+<div class="admin-actions"><a class="btn btn-outline" href="/admin">بازگشت به پنل</a><a class="btn btn-quiet" href="/">پرتال عمومی</a></div>
+</header>
+<section class="admin-queue-panel">
+<div class="queue-toolbar"><label for="status-filter">نمایش درخواست‌ها</label><select id="status-filter"><option value="pending">در انتظار بررسی</option><option value="approved">تأییدشده</option><option value="rejected">ردشده</option><option value="all">همه درخواست‌ها</option></select><button id="refresh-queue" class="btn btn-outline" type="button">به‌روزرسانی</button></div>
+<div id="queue-message" class="queue-message" role="status" aria-live="polite"></div><div id="request-list" class="request-list" aria-live="polite"></div>
+</section>
+<footer class="admin-requests-footer"><span>Iran CA Center · Private PKI</span><a href="/login">ورود مجدد مدیر</a></footer>
+</main>
+</body>
+</html>

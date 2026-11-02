@@ -974,7 +974,7 @@
       </span>
     </div>
     <div class="header-actions">
-      <a class="domain-pill" href="https://ca1.iravand.ir/login" dir="ltr">ca1.iravand.ir <svg class="icon sm"><use href="#i-arrow"></use></svg></a>
+      <a class="domain-pill" href="https://ca1.iravand.ir/" dir="rtl">پرتال درخواست <svg class="icon sm"><use href="#i-arrow"></use></svg></a>
     </div>
   </header>
 
@@ -989,8 +989,8 @@
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
       <div class="eyebrow">مرکز رسمی راهنمای نصب گواهی ریشه</div>
-      <h1 id="hero-title">برای اتصال امن به CA-Panel، گواهی ریشه را <span class="accent">فقط در صورت اعتماد</span> نصب کنید.</h1>
-      <p>برای استفاده از پنل CA-Panel در دامنه <bdi dir="ltr">ca1.iravand.ir</bdi> و گواهی‌های صادرشده توسط آن، لازم است گواهی ریشه (Root CA) این سامانه را پس از بررسی، روی دستگاه خود نصب و به آن اعتماد کنید.</p>
+      <h1 id="hero-title">برای اعتماد به گواهی‌های صادرشده توسط CA-Panel، Root CA را <span class="accent">فقط در صورت نیاز</span> نصب کنید.</h1>
+      <p>برای ورود به پرتال عمومی <bdi dir="ltr">ca1.iravand.ir</bdi> نیازی به نصب Root خصوصی نیست؛ HTTPS خود سایت با گواهی عمومی تأمین می‌شود. اگر می‌خواهید به گواهی‌های دامنه‌ای صادرشده توسط Private CA اعتماد کنید، Root CA را پس از بررسی اثر انگشت مستقل روی دستگاه مقصد نصب کنید.</p>
       <div class="trust-pills">
         <span class="trust-pill"><svg class="icon"><use href="#i-shield"></use></svg> اتصال امن و معتبر</span>
         <span class="trust-pill"><svg class="icon"><use href="#i-lock"></use></svg> صدور گواهی داخلی</span>
@@ -1322,8 +1322,8 @@ sudo trust extract-compat</pre>
     </div>
     <div class="test-copy">
       <div class="panel-header" style="margin-bottom:7px"><span class="section-number">۴</span><div><h2>مرحله ۴: نصب و آزمایش اتصال</h2></div></div>
-      <p>پس از نصب و اعتماد به گواهی، مرورگر را دوباره باز کنید و اتصال امن خود به CA-Panel را آزمایش کنید. اگر همه چیز به‌درستی انجام شده باشد، بدون هشدار گواهی به پنل متصل خواهید شد.</p>
-      <a class="button-primary" href="https://ca1.iravand.ir/login">رفتن به پنل امن CA-Panel <svg class="icon sm"><use href="#i-arrow"></use></svg></a>
+      <p>پس از نصب و اعتماد به Root، مرورگر را دوباره باز کنید و یک وب‌سایت یا سرویس داخلی را که گواهی آن توسط CA-Panel صادر شده است آزمایش کنید. پرتال عمومی CA-Panel از HTTPS عمومی استفاده می‌کند و برای ورود به آن به نصب Root خصوصی نیاز ندارید.</p>
+      <a class="button-primary" href="https://ca1.iravand.ir/">رفتن به پرتال عمومی CA-Panel <svg class="icon sm"><use href="#i-arrow"></use></svg></a>
     </div>
   </section>
 
@@ -1355,7 +1355,7 @@ sudo trust extract-compat</pre>
     </div>
     <div class="faq-list">
       <details><summary>آیا این گواهی در همه مرورگرها به‌صورت پیش‌فرض معتبر است؟</summary><div class="faq-answer"><p>خیر. CA-Panel یک CA خصوصی است و در مخازن عمومی اعتماد مرورگرها قرار ندارد. برای اعتماد باید آن را آگاهانه در مخزن سیستم‌عامل یا مرورگر نصب کنید.</p></div></details>
-      <details><summary>بعد از نصب، چگونه متوجه شوم که گواهی به‌درستی اعتماد شده است؟</summary><div class="faq-answer"><p>مرورگر را کاملاً ببندید و دوباره باز کنید، سپس پنل را با HTTPS باز کنید. نباید خطای صادرکننده ناشناخته یا نام دامنه مشاهده شود. در صورت باقی‌ماندن خطا، مخزن اعتماد، تاریخ و ساعت دستگاه و نام دامنه را بررسی کنید.</p></div></details>
+      <details><summary>بعد از نصب، چگونه متوجه شوم که گواهی به‌درستی اعتماد شده است؟</summary><div class="faq-answer"><p>مرورگر را کاملاً ببندید و دوباره باز کنید، سپس وب‌سایتی را که گواهی آن توسط CA-Panel صادر شده با HTTPS باز کنید. پرتال عمومی خود CA-Panel به Root خصوصی نیاز ندارد. اگر سرویس داخلی هنوز خطا می‌دهد، مخزن اعتماد، تاریخ و ساعت دستگاه و نام دامنه را بررسی کنید.</p></div></details>
       <details><summary>آیا نصب این گواهی روی دستگاه شخصی ریسک امنیتی دارد؟</summary><div class="faq-answer"><p>بله، نصب Root CA به صادرکننده آن اختیار اعتماد گسترده می‌دهد. فقط در صورتی نصب کنید که به اپراتور CA و دستگاه اعتماد دارید، مالک یا مدیر مجاز دستگاه هستید و اثر انگشت را از یک کانال مستقل بررسی کرده‌اید.</p></div></details>
       <details><summary>فرق بین فرمت‌های PEM و CER چیست و کدام را دانلود کنم؟</summary><div class="faq-answer"><p>PEM نمایش متنی Base64 از گواهی است و معمولاً برای Linux، macOS و OpenSSL مناسب است. فایل CER این سامانه با قالب باینری DER ساخته شده و برای Windows و بسیاری از ابزارهای گرافیکی مناسب‌تر است. هر دو به یک گواهی ریشه اشاره می‌کنند.</p></div></details>
       <details><summary>چرا بعضی برنامه‌های Android بعد از نصب هنوز خطا می‌دهند؟</summary><div class="faq-answer"><p>برخی برنامه‌های جدید Android به‌صورت پیش‌فرض به CAهای نصب‌شده توسط کاربر اعتماد نمی‌کنند یا از certificate pinning استفاده می‌کنند. نصب گواهی در سیستم تضمین نمی‌کند همه برنامه‌ها آن را بپذیرند.</p></div></details>

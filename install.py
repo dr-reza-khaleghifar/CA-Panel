@@ -215,6 +215,62 @@ def assert_ca_files(online: Path, filenames: tuple[str, str, str]) -> None:
             fail(f"Refusing symlink for CA file: {path}")
 
 
+def ensure_public_root_download(online: Path, root_filename: str, *, create: bool) -> None:
+    """Ensure Caddy has a matching DER Root CA download without overwriting unknown files."""
+    if online.is_symlink() or not online.is_dir():
+        fail("CA online directory is missing or unsafe")
+    source = online / root_filename
+    target = online / "ca-panel-root-ca.cer"
+    if source.is_symlink() or not source.is_file():
+        fail(f"Root CA certificate is missing or unsafe: {source}")
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        fail(f"Root download target is not a regular file: {target}")
+    openssl = shutil.which("openssl")
+    if not openssl:
+        fail("OpenSSL is required to prepare the public DER Root CA download")
+
+    def fingerprint(path: Path, *, der: bool) -> str:
+        command = [openssl, "x509"]
+        if der:
+            command += ["-inform", "DER"]
+        command += ["-in", str(path), "-noout", "-fingerprint", "-sha256"]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        return result.stdout.strip().split("=", 1)[-1].replace(":", "").upper()
+
+    try:
+        expected = fingerprint(source, der=False)
+        if target.exists():
+            actual = fingerprint(target, der=True)
+            if actual != expected:
+                fail("Existing ca-panel-root-ca.cer does not match the configured Root CA PEM")
+            if (target.stat().st_mode & 0o777) != 0o644:
+                try:
+                    os.chmod(target, 0o644)
+                except PermissionError:
+                    fail("Root CA CER is valid but not world-readable; run chmod 644 on "
+                         + str(target) + " as its owner/root.")
+            return
+        if not create:
+            fail(f"Missing public Root CA download: {target}")
+        with tempfile.NamedTemporaryFile(prefix=".ca-panel-root-ca-", suffix=".tmp",
+                                         dir=online, delete=False) as temporary:
+            temp_path = Path(temporary.name)
+        try:
+            subprocess.run(
+                [openssl, "x509", "-in", str(source), "-outform", "DER", "-out", str(temp_path)],
+                check=True, capture_output=True,
+            )
+            if fingerprint(temp_path, der=True) != expected:
+                fail("Generated DER Root CA fingerprint does not match the PEM certificate")
+            os.chmod(temp_path, 0o644)
+            os.replace(temp_path, target)
+        finally:
+            temp_path.unlink(missing_ok=True)
+    except subprocess.CalledProcessError as exc:
+        fail("Could not validate or create the DER Root CA download with OpenSSL: "
+             + (exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else str(exc.stderr)))
+
+
 def maybe_check_issuer_password(online: Path, filename: str, password: str) -> None:
     # An existing CA can run without cryptography on the HOST; startup validates
     # the key inside Docker. When installed, catch password mismatches earlier.
@@ -243,10 +299,10 @@ def check_health() -> bool:
     return False
 
 
-def private_https_is_healthy(root_cert: Path, domain: str) -> bool:
-    """Check localhost:443 using the real private CA root and SNI, never TLS-insecure."""
-    ctx = ssl.create_default_context(cafile=str(root_cert))
-    for _ in range(12):
+def public_https_is_healthy(domain: str) -> bool:
+    """Check localhost:443 with the operating system's public WebPKI trust store."""
+    ctx = ssl.create_default_context()
+    for _ in range(60):
         try:
             with socket.create_connection(("127.0.0.1", 443), timeout=3) as connection:
                 with ctx.wrap_socket(connection, server_hostname=domain) as secure:
@@ -263,12 +319,11 @@ def private_https_is_healthy(root_cert: Path, domain: str) -> bool:
                         if not piece:
                             break
                         response += piece
-                    if (response.startswith(b"HTTP/1.1 200") or
-                        response.startswith(b"HTTP/2 200")) and b'"status":"ok"' in response:
+                    if response.startswith(b"HTTP/1.1 200") and b'"status":"ok"' in response:
                         return True
         except (OSError, ssl.SSLError, TimeoutError):
             pass
-        time.sleep(1.5)
+        time.sleep(2)
     return False
 
 
@@ -280,8 +335,8 @@ def main() -> int:
                         help="Prepare only; do not run Docker Compose")
     parser.add_argument("--check", action="store_true",
                         help="Only check prerequisites, configured paths and CA files")
-    parser.add_argument("--private-https", action="store_true",
-                        help="Run API plus private-CA Caddy HTTPS on port 443")
+    parser.add_argument("--private-https", "--public-https", dest="private_https", action="store_true",
+                        help="Run API plus Caddy with publicly trusted ACME HTTPS (legacy flag alias)")
     args = parser.parse_args()
     if args.init_ca and args.private_https:
         parser.error("--init-ca and --private-https cannot be combined")
@@ -348,6 +403,7 @@ def main() -> int:
         return 0
 
     assert_ca_files(online, filenames)
+    ensure_public_root_download(online, filenames[2], create=not args.check)
     secret = values.get("CA_KEY_PASSWORD", "")
     if not secret or secret == "REPLACE_WITH_ISSUING_CA_PASSPHRASE":
         if args.check:
@@ -402,20 +458,16 @@ def main() -> int:
     if data.exists() and (data.is_symlink() or not data.is_dir()):
         fail("DATA_HOST_DIR is not a regular directory")
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
-    # Only a local operator with access to .env and the encrypted online
-    # Issuing CA can bootstrap/renew the configured PANEL_DOMAIN. Public
-    # /api/requests still require DNS ownership proof.
-    panel_tls_action = "unchanged"
+    # The public portal uses Caddy's ACME automation for its own HTTPS
+    # certificate. The private CA is reserved for user-requested certificates.
+    domain = None
     if args.private_https:
-        check_prerequisites(docker=False, crypto=True)
-        from scripts.issue_panel_tls import ensure_panel_tls
+        from scripts.setup_private_tls import safe_domain
         try:
-            panel_tls_action = ensure_panel_tls(ROOT)
-        except (OSError, ValueError) as exc:
-            fail("Could not provision private HTTPS certificate for PANEL_DOMAIN: "
-                 + str(exc))
-        info("Local panel HTTPS certificate: " + panel_tls_action
-             + " (no DNS TXT required for local installation).")
+            domain = safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
+        except ValueError as exc:
+            fail("Invalid PANEL_DOMAIN for public ACME HTTPS: " + str(exc))
+        info(f"Caddy will obtain/renew a publicly trusted ACME certificate for {domain}.")
     if not args.no_start:
         check_prerequisites(docker=True, crypto=False)
         info("Building and launching CA-Panel API with Docker Compose...")
@@ -428,21 +480,13 @@ def main() -> int:
             fail("Docker launch requested but /healthz is not healthy. "
                  "Run: docker compose ps && docker compose logs --tail=80 api")
         if args.private_https:
-            # Compose can retain a running Caddy when only files change.
-            # Reload the existing daemon so renewed cert and key take effect.
-            if panel_tls_action != "unchanged":
-                run("docker", "compose", "--profile", "private-tls", "restart", "caddy-private")
-            from scripts.setup_private_tls import safe_domain
-            domain = safe_domain(values.get("PANEL_DOMAIN", "ca1.iravand.ir"))
-            root = online / filenames[2]
-            if not private_https_is_healthy(root, domain):
-                fail("Port 443 TLS health check failed. Check that the signed "
-                     "certificate covers PANEL_DOMAIN, the port is available, "
-                     "and only one Caddy profile is active. "
-                     "Run: docker compose --profile private-tls logs --tail=80 caddy-private")
-            info(f"SUCCESS: CA-Panel is healthy with your private CA at https://{domain}:443")
-            info(f"HTTP GUIDE ONLY (no files, certificates, login or API): http://{domain}/")
-            info("Warning: certificate trust must be verified out-of-band before importing Root CA.")
+            if not public_https_is_healthy(domain):
+                fail("Public HTTPS health check failed. Confirm PANEL_DOMAIN resolves to this server, "
+                     "TCP 80/443 are reachable from the internet, and Caddy can complete ACME. "
+                     "Run: docker compose --profile private-tls logs --tail=100 caddy-private")
+            info(f"SUCCESS: CA-Panel is healthy at https://{domain}:443 with public ACME TLS.")
+            info(f"HTTP ROOT GUIDE AND PUBLIC ROOT DOWNLOADS ONLY: http://{domain}/")
+            info("Issued domain certificates remain private-CA certificates and require separate Root trust.")
         else:
             info("SUCCESS: CA-Panel is healthy at http://127.0.0.1:8080")
         info("Public CA metadata: http://127.0.0.1:8080/api/system")
