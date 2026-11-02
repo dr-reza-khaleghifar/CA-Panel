@@ -53,6 +53,10 @@ class CsrInput(BaseModel):
     csr_pem: str = Field(min_length=40, max_length=16384)
 
 
+class AdminReviewInput(BaseModel):
+    note: str = Field(default="", max_length=254)
+
+
 def normalize_domain(value: str) -> str:
     value = value.strip()
     if value.startswith(("http://", "https://")):
@@ -140,13 +144,30 @@ def init_db(db_path: Path) -> None:
                 verified_at INTEGER,
                 issued_at INTEGER,
                 cert_pem TEXT,
-                serial_hex TEXT
+                serial_hex TEXT,
+                approval_status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+                reviewed_at INTEGER,
+                review_note TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS idx_challenges_rate
                 ON challenges (client_ip, created_at);
             CREATE INDEX IF NOT EXISTS idx_challenges_created
                 ON challenges (created_at);
         """)
+        # Forward-compatible migration for databases created before public review.
+        columns = {row["name"] for row in con.execute("PRAGMA table_info(challenges)")}
+        if "approval_status" not in columns:
+            con.execute("ALTER TABLE challenges ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'pending'")
+        if "reviewed_at" not in columns:
+            con.execute("ALTER TABLE challenges ADD COLUMN reviewed_at INTEGER")
+        if "review_note" not in columns:
+            con.execute("ALTER TABLE challenges ADD COLUMN review_note TEXT NOT NULL DEFAULT ''")
+        # Historical certificates remain valid and are treated as already approved.
+        con.execute(
+            "UPDATE challenges SET approval_status='approved' "
+            "WHERE issued_at IS NOT NULL AND approval_status='pending'"
+        )
 
 
 def load_issuer(ca_dir: Path, password: str,
@@ -272,8 +293,9 @@ def build_server_bundle(domain: str, private_key_pem: bytes, certificate: x509.C
 
 def client_address(request: Request, settings: Settings) -> str:
     if settings.trust_proxy_headers:
-        # Only turn this on when *all* incoming requests pass through a trusted proxy.
-        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        # Caddy overwrites X-Real-IP with the connected peer address. Never trust
+        # arbitrary client-supplied forwarding headers at the application edge.
+        forwarded = request.headers.get("x-real-ip", "").strip()
         try:
             return str(ipaddress.ip_address(forwarded))
         except ValueError:
@@ -288,11 +310,30 @@ def public_view(row: sqlite3.Row) -> dict:
         "dns_value": "ca-panel-verification=" + row["token"],
         "expires_at": row["expires_at"],
         "verified": row["verified_at"] is not None,
+        "approval_status": row["approval_status"],
         "issued": row["issued_at"] is not None,
     }
     if row["issued_at"] is not None:
         result["serial_hex"] = row["serial_hex"]
     return result
+
+
+def is_public_issuance_route(path: str, method: str) -> bool:
+    """Allow only capability-scoped public issuance operations, never admin APIs."""
+    rid = r"[A-Za-z0-9_-]{20,100}"
+    capability = r"[A-Za-z0-9_-]{20,128}"
+    method = method.upper()
+    if path == "/api/requests" and method == "POST":
+        return True
+    if re.fullmatch(rf"/api/requests/{rid}", path) and method == "GET":
+        return True
+    if re.fullmatch(rf"/api/requests/{rid}/(?:verify|issue|issue-server)", path) and method == "POST":
+        return True
+    if re.fullmatch(rf"/api/requests/{rid}/(?:leaf\\.crt|fullchain\\.pem|certificate)", path) and method == "GET":
+        return True
+    if re.fullmatch(rf"/api/downloads/{capability}", path) and method == "GET":
+        return True
+    return False
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -345,19 +386,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         path = request.url.path
-        public = (path in ("/healthz", "/login", "/api/system", "/api/ca.pem",
+        public = (path in ("/", "/healthz", "/login", "/api/system", "/api/ca.pem",
                            "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
-                  or path.startswith("/static/"))
+                  or path.startswith("/static/")
+                  or is_public_issuance_route(path, request.method))
+        public_write = is_public_issuance_route(path, request.method) and request.method not in ("GET", "HEAD")
         csrf = (get_session(settings.db_path, request.cookies.get(SESSION_COOKIE),
                             settings.admin_session_generation)
                 if admin_ready else None)
         request.state.admin_csrf = csrf
-        if not public:
+        if public and public_write:
+            origin = request.headers.get("origin")
+            host = request.headers.get("host", "").lower()
+            if origin and urlsplit(origin).netloc.lower() != host:
+                response = JSONResponse({"detail": "Cross-origin request rejected"}, status_code=403)
+            elif request.headers.get("sec-fetch-site", "").lower() == "cross-site":
+                response = JSONResponse({"detail": "Cross-site request rejected"}, status_code=403)
+            elif not admin_ready:
+                response = JSONResponse({"detail": "Public issuance is not enabled until administrator setup is complete"}, status_code=503)
+            else:
+                response = await call_next(request)
+        elif not public:
             if not admin_ready:
-                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                response = (RedirectResponse("/login", status_code=303) if path.startswith("/admin")
                             else JSONResponse({"detail": "Administrator enrollment required"}, status_code=503))
             elif csrf is None:
-                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                response = (RedirectResponse("/login", status_code=303) if path.startswith("/admin")
                             else JSONResponse({"detail": "Administrator login required"}, status_code=401))
             elif request.method not in ("GET", "HEAD", "OPTIONS") and not secrets.compare_digest(
                     request.headers.get("x-csrf-token", ""), csrf):
@@ -417,7 +471,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def home():
+        return FileResponse(BASE / "static" / "public.html", media_type="text/html")
+
+    @app.get("/admin", include_in_schema=False)
+    def admin_home():
         return FileResponse(BASE / "static" / "index.html", media_type="text/html")
+
+    @app.get("/admin/requests", include_in_schema=False)
+    def admin_requests_page():
+        return FileResponse(BASE / "static" / "admin-requests.html", media_type="text/html")
 
     @app.get("/healthz")
     def healthz():
@@ -457,6 +519,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/requests", status_code=201)
     def new_request(body: DomainInput, request: Request):
+        if not admin_ready:
+            raise HTTPException(503, "Administrator enrollment is required before public issuance")
         try:
             domain = normalize_domain(body.domain)
         except ValueError as exc:
@@ -488,6 +552,85 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, "Request not found")
         return row
 
+    @app.get("/api/admin/requests")
+    def admin_list_requests(request: Request):
+        status = request.query_params.get("status", "pending")
+        if status not in ("pending", "approved", "rejected", "all"):
+            raise HTTPException(422, "Invalid request status filter")
+        with connect(settings.db_path) as con:
+            if status == "all":
+                rows = con.execute(
+                    "SELECT id, domain, created_at, expires_at, verified_at, issued_at, "
+                    "approval_status, reviewed_at, review_note, serial_hex "
+                    "FROM challenges ORDER BY created_at DESC LIMIT 100"
+                ).fetchall()
+            else:
+                rows = con.execute(
+                    "SELECT id, domain, created_at, expires_at, verified_at, issued_at, "
+                    "approval_status, reviewed_at, review_note, serial_hex "
+                    "FROM challenges WHERE approval_status=? ORDER BY created_at DESC LIMIT 100",
+                    (status,),
+                ).fetchall()
+        return {"requests": [
+            {
+                "request_id": row["id"], "domain": row["domain"],
+                "created_at": row["created_at"], "expires_at": row["expires_at"],
+                "verified": row["verified_at"] is not None,
+                "issued": row["issued_at"] is not None,
+                "approval_status": row["approval_status"],
+                "reviewed_at": row["reviewed_at"],
+                "review_note": row["review_note"],
+                "serial_hex": row["serial_hex"],
+            } for row in rows
+        ]}
+
+    @app.post("/api/admin/requests/{rid}/approve")
+    def admin_approve_request(rid: str):
+        row = get_challenge_or_404(rid)
+        now = int(time.time())
+        if row["issued_at"] is not None:
+            raise HTTPException(409, "Certificate already issued")
+        if row["approval_status"] != "pending":
+            raise HTTPException(409, "Request is no longer pending review")
+        if row["expires_at"] < now:
+            raise HTTPException(410, "DNS challenge expired")
+        if row["verified_at"] is None:
+            raise HTTPException(409, "Verify domain ownership before approval")
+        if not domain_permitted(row["domain"], issuance_domains, allow_any=allow_any_domain):
+            audit(settings.db_path, "issuance_domain_denied", row["domain"])
+            raise HTTPException(403, "Domain is no longer authorized by CA policy")
+        if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
+            raise HTTPException(403, "DNS ownership proof is no longer present")
+        with connect(settings.db_path) as con:
+            cur = con.execute(
+                "UPDATE challenges SET approval_status='approved', reviewed_at=?, review_note='' "
+                "WHERE id=? AND approval_status='pending' AND issued_at IS NULL",
+                (now, rid),
+            )
+            if cur.rowcount != 1:
+                raise HTTPException(409, "Request changed during review")
+        audit(settings.db_path, "issuance_approved", row["domain"])
+        return {"request_id": rid, "approval_status": "approved"}
+
+    @app.post("/api/admin/requests/{rid}/reject")
+    def admin_reject_request(rid: str, body: AdminReviewInput):
+        row = get_challenge_or_404(rid)
+        if row["issued_at"] is not None:
+            raise HTTPException(409, "Certificate already issued")
+        if row["approval_status"] != "pending":
+            raise HTTPException(409, "Request is no longer pending review")
+        note = body.note.strip()
+        with connect(settings.db_path) as con:
+            cur = con.execute(
+                "UPDATE challenges SET approval_status='rejected', reviewed_at=?, review_note=? "
+                "WHERE id=? AND approval_status='pending' AND issued_at IS NULL",
+                (int(time.time()), note, rid),
+            )
+            if cur.rowcount != 1:
+                raise HTTPException(409, "Request changed during review")
+        audit(settings.db_path, "issuance_rejected", row["domain"])
+        return {"request_id": rid, "approval_status": "rejected"}
+
     @app.get("/api/requests/{rid}")
     def read_request(rid: str):
         return public_view(get_challenge_or_404(rid))
@@ -496,6 +639,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def verify_request(rid: str):
         row = get_challenge_or_404(rid)
         now = int(time.time())
+        if row["approval_status"] == "rejected":
+            raise HTTPException(403, "This request was rejected by the CA administrator")
         if row["expires_at"] < now:
             raise HTTPException(410, "DNS challenge has expired; start a new request")
         if row["issued_at"] is not None:
@@ -521,6 +666,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(410, "Challenge expired")
         if row["issued_at"] is not None:
             raise HTTPException(409, "Certificate already issued for this request")
+        if row["approval_status"] == "rejected":
+            raise HTTPException(403, "This request was rejected by the CA administrator")
+        if row["approval_status"] != "approved":
+            raise HTTPException(409, "Request is awaiting administrator approval")
         if row["verified_at"] is None:
             raise HTTPException(403, "Verify DNS ownership first")
         # Re-check at signing time; a previously verified token is not indefinite authority.
@@ -554,6 +703,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(410, "Challenge expired. Create a new DNS request.")
         if row["issued_at"] is not None:
             raise HTTPException(409, "Already issued. For a new private key start a new request.")
+        if row["approval_status"] == "rejected":
+            raise HTTPException(403, "This request was rejected by the CA administrator")
+        if row["approval_status"] != "approved":
+            raise HTTPException(409, "Request is awaiting administrator approval")
         if row["verified_at"] is None:
             raise HTTPException(403, "Verify DNS ownership first")
         if not app.state.dns_checker("_ca-panel." + row["domain"], "ca-panel-verification=" + row["token"]):
