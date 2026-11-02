@@ -348,7 +348,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         public_issuance_api = (
             path == "/api/public/requests"
             or re.fullmatch(
-                r"/api/public/requests/[A-Za-z0-9_-]{1,100}(?:/(?:verify|issue-server|leaf\\.crt|fullchain\\.pem))?",
+                r"/api/public/requests/[A-Za-z0-9_-]{1,100}(?:/(?:verify|issue-server|leaf\.crt|fullchain\.pem))?",
                 path,
             ) is not None
             or re.fullmatch(r"/api/public/downloads/[A-Za-z0-9_-]{1,100}", path) is not None
