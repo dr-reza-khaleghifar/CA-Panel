@@ -60,13 +60,19 @@ async function loadSystemInformation() {
       if (el && typeof value === 'string') el.textContent = value;
     };
     // Branding is the product identity, while these are live PKI metadata.
+    const publicEnabled = data.public_issuance_enabled === true;
     setLabel('ca-sidebar-org', data.organization);
-    setLabel('ca-topbar-name', 'سرویس صدور فعال');
-    setLabel('service-status', 'آماده صدور');
-    $('service-status-dot')?.classList.remove('pending', 'unhealthy');
-    $('service-status-dot')?.classList.add('healthy');
-    $('header-health')?.classList.add('ready');
-    $('header-health')?.classList.remove('unavailable');
+    setLabel('ca-topbar-name', publicEnabled ? 'پرتال آماده دریافت درخواست' : 'در انتظار تنظیم مدیر');
+    setLabel('service-status', publicEnabled ? 'آماده صدور' : 'صدور عمومی غیرفعال');
+    $('service-status-dot')?.classList.remove('pending', 'unhealthy', 'healthy');
+    $('service-status-dot')?.classList.add(publicEnabled ? 'healthy' : 'unhealthy');
+    $('header-health')?.classList.toggle('ready', publicEnabled);
+    $('header-health')?.classList.toggle('unavailable', !publicEnabled);
+    const submitButton = $('domain-submit');
+    if (submitButton) submitButton.disabled = !publicEnabled;
+    if (!publicEnabled) {
+      notify('پرتال عمومی هنوز توسط مدیر فعال نشده است. لطفاً بعداً مراجعه کنید.');
+    }
     setLabel('ca-issuer-name', data.issuer_common_name);
     setLabel('ca-root-name', data.root_common_name);
     setLabel('ca-root-fingerprint', data.root_sha256);
