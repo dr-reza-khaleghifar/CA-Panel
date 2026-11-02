@@ -88,7 +88,7 @@ def test_https_portal_uses_public_acme_certificate_and_overwrites_client_ip():
 
 def test_compose_does_not_mount_private_panel_tls_and_enables_trusted_proxy_ip():
     compose = (ROOT / "compose.yaml").read_text("utf-8")
-    private = re.search(r"\\n  caddy-private:(.*?)\\n  caddy:", compose, re.S).group(1)
+    private = re.search(r"\n  caddy-private:(.*?)\n  caddy:", compose, re.S).group(1)
     assert "TRUST_PROXY_HEADERS: \"${TRUST_PROXY_HEADERS:-1}\"" in compose
     assert "/etc/caddy/tls" not in private
 
