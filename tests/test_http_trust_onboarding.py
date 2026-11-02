@@ -43,7 +43,7 @@ def test_compose_mounts_only_public_guide_assets_and_root_certificate_files():
     assert '${PANEL_HTTP_BIND_IP:-0.0.0.0}:80:80' in private
     assert "./app/static/trust.html:/srv/onboarding/index.html:ro" in private
     assert "./app/static/trust.js:/srv/onboarding/trust.js:ro" in private
-    assert "/root-cert.pem:/srv/onboarding/ca-panel-root-ca.pem:ro" in private
+    assert "${CA_ROOT_CERT_FILE:-root-cert.pem}:/srv/onboarding/ca-panel-root-ca.pem:ro" in private
     assert "/ca-panel-root-ca.cer:/srv/onboarding/ca-panel-root-ca.cer:ro" in private
     assert ":/srv/onboarding/issuer-key.pem" not in private
     assert ":/srv/onboarding/.env" not in private
