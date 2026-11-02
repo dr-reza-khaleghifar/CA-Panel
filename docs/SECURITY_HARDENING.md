@@ -10,7 +10,7 @@ The public portal requires inbound **TCP 80 and TCP 443**:
 - TCP 80 serves only the static Root CA trust guide, its local helper script and the two public Root CA downloads. Caddy also needs port 80 for ACME HTTP-01 challenges.
 - TCP 443 serves the public portal and its APIs using a publicly trusted Caddy/ACME certificate.
 - Do not expose API port 8000. The host API mapping remains bound to `127.0.0.1:8080`.
-- Do not expose Docker's socket/API. Keep the offline Root private key entirely off the production server.
+- Do not expose Docker's socket/API. Best practice is to keep the encrypted Root private key on separate offline media. If a single-server deployment temporarily keeps it on this host, preserve the encrypted PKCS#8 file, directory mode 0700 and key mode 0600; never mount the offline directory into the API container. A host compromise would then also compromise the Root.
 
 Docker-published ports may bypass ordinary UFW rules; enforce the intended public ports and API isolation at the cloud/network firewall as well as on the host. Since the portal is public, do not restrict TCP 443 to a VPN or a fixed administrator IP range.
 
@@ -113,4 +113,4 @@ The HTTP trust guide should remain available at `http://ca1.iravand.ir/`; its on
 
 ## 7. Remaining risks — do not overstate assurance
 
-This is single-administrator access control, not enterprise SSO, independent RBAC, hardware-backed keys, formally verified secure key custody, malware-resistant hosts, PKI revocation or public trust. Private keys are still produced temporarily inside the API process for server-issued ZIP packages, and the Issuing CA signing key is mounted into that process. The project still has no CRL/OCSP, HSM, independent external penetration test, or full security monitoring. ACME is used only for the portal's own HTTPS certificate, not for customer certificate issuance. For production CA operation, commission an independent assessment and plan issuer-key protection and incident response.
+This is single-administrator access control, not enterprise SSO, independent RBAC, hardware-backed keys, formally verified secure key custody, malware-resistant hosts, PKI revocation or public trust. Private keys are still produced temporarily inside the API process for server-issued ZIP packages, and the Issuing CA signing key is mounted into that process. Keeping the encrypted Root private key on the same host (rather than separate offline media) is an additional accepted single-server risk until an offline workstation/storage is available. The project still has no CRL/OCSP, HSM, independent external penetration test, or full security monitoring. ACME is used only for the portal's own HTTPS certificate, not for customer certificate issuance. For production CA operation, commission an independent assessment and plan issuer-key protection and incident response.
