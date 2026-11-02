@@ -28,6 +28,7 @@ def prepare(tmp_path: Path, monkeypatch, *, existing_env: str | None = None):
         (online / filename).write_text("test fixture, NOT private CA material", encoding="utf-8")
     monkeypatch.setattr(install, "check_prerequisites", lambda **kwargs: None)
     monkeypatch.setattr(install, "maybe_check_issuer_password", lambda *args: None)
+    monkeypatch.setattr(install, "ensure_public_root_download", lambda *args, **kwargs: None)
     monkeypatch.setattr(sys, "argv", ["install.py", "--no-start"])
     monkeypatch.chdir(tmp_path)
 
@@ -244,3 +245,34 @@ def test_legacy_private_https_flag_is_an_alias_for_public_acme_tls(tmp_path, mon
             "--build", "api", "caddy-private") in calls
     assert tls_checks == ["ca1.iravand.ir"]
     assert not any("restart" in command for command in calls)
+
+def test_public_root_der_download_is_generated_and_mismatch_is_refused(tmp_path):
+    import shutil
+    import subprocess
+
+    if not shutil.which("openssl"):
+        pytest.skip("OpenSSL is unavailable")
+    online = tmp_path / "online"
+    online.mkdir()
+    first = online / "root-cert.pem"
+    second = online / "other-root.pem"
+    subprocess.run([
+        "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+        "-subj", "/CN=CA-Panel Test Root", "-keyout", str(online / "root.key"),
+        "-out", str(first),
+    ], check=True, capture_output=True)
+    install.ensure_public_root_download(online, "root-cert.pem", create=True)
+    target = online / "ca-panel-root-ca.cer"
+    assert target.is_file()
+    assert stat.S_IMODE(target.stat().st_mode) == 0o644
+    subprocess.run(["openssl", "x509", "-inform", "DER", "-in", str(target), "-noout"],
+                   check=True, capture_output=True)
+    subprocess.run([
+        "openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+        "-subj", "/CN=Different Test Root", "-keyout", str(online / "other.key"),
+        "-out", str(second),
+    ], check=True, capture_output=True)
+    subprocess.run(["openssl", "x509", "-in", str(second), "-outform", "DER", "-out", str(target)],
+                   check=True, capture_output=True)
+    with pytest.raises(RuntimeError, match="does not match"):
+        install.ensure_public_root_download(online, "root-cert.pem", create=True)
