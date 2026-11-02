@@ -288,3 +288,15 @@ def test_admin_rejection_is_audited_and_blocks_public_signing(client):
     assert client.post(f"/api/requests/{rid}/issue-server").status_code == 409
     queue = client.get("/api/admin/requests?status=rejected").json()["requests"]
     assert any(item["request_id"] == rid and item["review_note"] == "not authorized" for item in queue)
+
+
+def test_admin_approval_rechecks_live_dns_proof(client):
+    rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
+    assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    client.app.state.dns_checker = lambda name, expected: False
+    denied = client.post(f"/api/admin/requests/{rid}/approve")
+    assert denied.status_code == 422
+    client.app.state.dns_checker = lambda name, expected: True
+    approved = client.post(f"/api/admin/requests/{rid}/approve")
+    assert approved.status_code == 200
+    assert approved.json()["approval_status"] == "approved"
