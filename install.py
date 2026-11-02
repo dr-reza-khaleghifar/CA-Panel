@@ -215,6 +215,57 @@ def assert_ca_files(online: Path, filenames: tuple[str, str, str]) -> None:
             fail(f"Refusing symlink for CA file: {path}")
 
 
+def ensure_public_root_download(online: Path, root_filename: str, *, create: bool) -> None:
+    """Ensure Caddy has a matching DER Root CA download without overwriting unknown files."""
+    if online.is_symlink() or not online.is_dir():
+        fail("CA online directory is missing or unsafe")
+    source = online / root_filename
+    target = online / "ca-panel-root-ca.cer"
+    if source.is_symlink() or not source.is_file():
+        fail(f"Root CA certificate is missing or unsafe: {source}")
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        fail(f"Root download target is not a regular file: {target}")
+    openssl = shutil.which("openssl")
+    if not openssl:
+        fail("OpenSSL is required to prepare the public DER Root CA download")
+
+    def fingerprint(path: Path, *, der: bool) -> str:
+        command = [openssl, "x509"]
+        if der:
+            command += ["-inform", "DER"]
+        command += ["-in", str(path), "-noout", "-fingerprint", "-sha256"]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        return result.stdout.strip().split("=", 1)[-1].replace(":", "").upper()
+
+    try:
+        expected = fingerprint(source, der=False)
+        if target.exists():
+            actual = fingerprint(target, der=True)
+            if actual != expected:
+                fail("Existing ca-panel-root-ca.cer does not match the configured Root CA PEM")
+            os.chmod(target, 0o644)
+            return
+        if not create:
+            fail(f"Missing public Root CA download: {target}")
+        with tempfile.NamedTemporaryFile(prefix=".ca-panel-root-ca-", suffix=".tmp",
+                                         dir=online, delete=False) as temporary:
+            temp_path = Path(temporary.name)
+        try:
+            subprocess.run(
+                [openssl, "x509", "-in", str(source), "-outform", "DER", "-out", str(temp_path)],
+                check=True, capture_output=True,
+            )
+            if fingerprint(temp_path, der=True) != expected:
+                fail("Generated DER Root CA fingerprint does not match the PEM certificate")
+            os.chmod(temp_path, 0o644)
+            os.replace(temp_path, target)
+        finally:
+            temp_path.unlink(missing_ok=True)
+    except subprocess.CalledProcessError as exc:
+        fail("Could not validate or create the DER Root CA download with OpenSSL: "
+             + (exc.stderr.decode(errors="replace") if isinstance(exc.stderr, bytes) else str(exc.stderr)))
+
+
 def maybe_check_issuer_password(online: Path, filename: str, password: str) -> None:
     # An existing CA can run without cryptography on the HOST; startup validates
     # the key inside Docker. When installed, catch password mismatches earlier.
@@ -347,6 +398,7 @@ def main() -> int:
         return 0
 
     assert_ca_files(online, filenames)
+    ensure_public_root_download(online, filenames[2], create=not args.check)
     secret = values.get("CA_KEY_PASSWORD", "")
     if not secret or secret == "REPLACE_WITH_ISSUING_CA_PASSPHRASE":
         if args.check:
