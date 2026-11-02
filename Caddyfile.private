@@ -24,9 +24,9 @@ https://{$PANEL_DOMAIN} {
 
     handle {
         reverse_proxy api:8000 {
-        # Caddy overwrites this header with the actual peer IP for API rate limiting.
-        header_up X-Real-IP {remote_host}
-    }
+            # Caddy overwrites this header with the actual peer IP for API rate limiting.
+            header_up X-Real-IP {remote_host}
+        }
     }
 }
 
