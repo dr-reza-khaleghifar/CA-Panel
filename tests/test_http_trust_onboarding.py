@@ -75,3 +75,33 @@ def test_http_page_is_persian_read_only_trust_guide_with_current_ca_metadata():
         assert f'id="{platform}"' in page
     assert "certutil -hashfile ca-panel-root-ca.cer SHA256" in page
     assert "openssl x509 -in ca-panel-root-ca.pem" in page
+
+
+def test_https_portal_uses_public_acme_certificate_and_overwrites_client_ip():
+    config = (ROOT / "Caddyfile.private").read_text("utf-8")
+    https = config.split("https://{$PANEL_DOMAIN} {", 1)[1].split("http://{$PANEL_DOMAIN} {", 1)[0]
+    assert "tls /etc/caddy/tls/" not in https
+    assert "reverse_proxy api:8000" in https
+    assert "header_up X-Real-IP {remote_host}" in https
+    assert "auto_https disable_redirects" in config
+
+
+def test_compose_does_not_mount_private_panel_tls_and_enables_trusted_proxy_ip():
+    compose = (ROOT / "compose.yaml").read_text("utf-8")
+    private = compose.split("\\n  caddy-private:", 1)[1].split("\\n  caddy:", 1)[0]
+    assert "TRUST_PROXY_HEADERS: \"${TRUST_PROXY_HEADERS:-1}\"" in compose
+    assert "/etc/caddy/tls" not in private
+
+
+def test_public_portal_and_admin_review_are_separate():
+    public = (ROOT / "app/static/public.html").read_text("utf-8")
+    public_js = (ROOT / "app/static/public.js").read_text("utf-8")
+    admin = (ROOT / "app/static/admin-requests.html").read_text("utf-8")
+    assert 'id="domain-form"' in public
+    assert 'id="dns-step"' in public
+    assert 'id="review-step"' in public
+    assert 'id="issue-step"' in public
+    assert "Private CA" in public
+    assert "request_id" in public_js and "approval_status" in public_js
+    assert "/api/admin/requests" in (ROOT / "app/main.py").read_text("utf-8")
+    assert 'id="request-list"' in admin
