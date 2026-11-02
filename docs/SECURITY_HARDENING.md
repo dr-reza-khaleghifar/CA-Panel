@@ -1,12 +1,12 @@
 # Iran CA Center — hardening, access control and safe migration
 
-This release changes the previously anonymous CA issuance interface to a **single-administrator MFA-protected service**. **Upgrade deliberately:** anonymous users will not be able to request, sign, or download private-key ZIPs. Existing CA keys and certificates are preserved. This is not a third-party penetration-test certification or a multi-tenant PKI.
+This release separates the service into a **public request portal** and a **single-administrator review console**. Anonymous visitors may submit a DNS challenge and verify domain control, but they cannot sign certificates until an authenticated administrator approves the request. After approval, the requester uses an unguessable request capability to issue and retrieve the one-time private-key bundle. Existing CA keys and issued certificates are preserved by an additive SQLite migration. This is not a third-party penetration-test certification or a multi-tenant PKI.
 
 ## First: restrict access at the network edge
 
 Before upgrading an internet-exposed CA, restrict inbound TCP/UDP 443 to trusted managed IPs or VPN at the **cloud/network firewall**. Docker-published ports may bypass ordinary UFW rules. Keep Docker port 8080 bound to 127.0.0.1 only. Keep the **offline Root private key entirely off the server**; never paste `.env` or private keys into a ticket, chat, CI or browser.
 
-The HTTPS certificate on this site is signed by the **Pardis private CA**. Users must independently trust its Root; this release does not make a private CA publicly trusted.
+The public portal HTTPS certificate is managed by Caddy/ACME and should be trusted by ordinary browsers. Certificates issued to user domains are still signed by the **CA-Panel private CA**; they are not publicly browser-trusted. Users must independently verify and install the Root CA only on devices that are meant to trust this private PKI.
 
 ## Upgrade on existing Ubuntu CA server
 
@@ -60,7 +60,7 @@ In all-domains mode **administrator MFA, session/CSRF, rate limits, normal DNS-n
 
 ### CI security tests
 
-GitHub Actions runs the Python functional/authentication regression suite and adds a separate **`security` job** with `pip-audit` (published Python dependency advisories) and Bandit (static Python security scanning). Tests cover unauthenticated issuance denial, CSRF, session logout, TOTP replay, domain policy, audit privacy, one-use ZIP behavior and X.509/DNS checks. CI cannot validate your **actual Ubuntu firewall, OS patching, Docker daemon policy, DNS resolver integrity, real certificates and private-key handling**, nor substitute for a professional penetration test.
+GitHub Actions runs the Python functional/authentication regression suite and adds a separate **`security` job** with `pip-audit` (published Python dependency advisories) and Bandit (static Python security scanning). Tests cover public request submission, DNS proof, administrator approval/CSRF, cross-origin rejection, session logout, TOTP replay, domain policy, existing-database migration, audit privacy, one-use ZIP behavior and X.509/DNS checks. CI cannot validate your **actual Ubuntu firewall, OS patching, Docker daemon policy, DNS resolver integrity, real certificates and private-key handling**, nor substitute for a professional penetration test.
 
 ### Verification without printing secrets
 
@@ -75,7 +75,7 @@ curl --noproxy '*' --cacert secrets/online/root-cert.pem \
   https://ca1.iravand.ir/api/requests/does-not-exist
 ```
 
-The last command should return HTTP **401** after the admin has been enrolled. HTTP 503 means enrollment is incomplete. The site root should redirect unauthenticated browsers to `/login`. Sign in using the administrator password and TOTP, then test one allowlisted domain using its actual DNS challenge.
+The last command should return HTTP **404** for a well-formed but unknown request capability; it is a public capability-scoped status route. HTTP 503 on request creation means administrator enrollment is incomplete. The HTTPS site root is the public portal; `/admin/requests` redirects to `/login` until an administrator signs in. Test a domain using its actual DNS challenge, then approve it from the admin review queue before signing.
 
 ### Remaining risks — do not overstate assurance
 
