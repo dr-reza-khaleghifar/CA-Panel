@@ -275,3 +275,16 @@ def test_downloads_are_cleared_at_shutdown(tmp_path):
         assert response.status_code == 201, response.text
         assert len(api.state.downloads) == 1
     assert not api.state.downloads
+
+
+def test_admin_rejection_is_audited_and_blocks_public_signing(client):
+    rid = client.post("/api/requests", json={"domain": "example.org"}).json()["request_id"]
+    assert client.post(f"/api/requests/{rid}/verify").status_code == 200
+    rejected = client.post(f"/api/admin/requests/{rid}/reject", json={"note": "not authorized"})
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["approval_status"] == "rejected"
+    status = client.get(f"/api/requests/{rid}").json()
+    assert status["approval_status"] == "rejected"
+    assert client.post(f"/api/requests/{rid}/issue-server").status_code == 409
+    queue = client.get("/api/admin/requests?status=rejected").json()["requests"]
+    assert any(item["request_id"] == rid and item["review_note"] == "not authorized" for item in queue)
