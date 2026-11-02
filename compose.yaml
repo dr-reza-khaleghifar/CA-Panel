@@ -37,7 +37,7 @@ services:
       ADMIN_SESSION_GENERATION: "${ADMIN_SESSION_GENERATION:-}"
       CERT_ALLOWED_DOMAINS: "${CERT_ALLOWED_DOMAINS:-}"
       CERT_ALLOW_ANY_DOMAIN: "${CERT_ALLOW_ANY_DOMAIN:-0}"
-      TRUST_PROXY_HEADERS: "${TRUST_PROXY_HEADERS:-0}"
+      TRUST_PROXY_HEADERS: "${TRUST_PROXY_HEADERS:-1}"
       DNS_RESOLVERS: "${DNS_RESOLVERS:-}"
     volumes:
       - ${DATA_HOST_DIR:-./data}:/data
@@ -49,9 +49,8 @@ services:
       retries: 3
       start_period: 15s
 
-  # HTTPS with the certificate issued by YOUR own Issuing CA.
-  # Start using: docker compose --profile private-tls up -d --build api caddy-private
-  # Keep this profile mutually exclusive with the existing public/ACME Caddy.
+  # Public ACME TLS fronts the portal; the private CA is used only for issued domain certificates.
+  # The private-tls profile name is retained for backwards-compatible deployment commands.
   caddy-private:
     image: caddy:2.10
     profiles: ["private-tls"]
@@ -65,7 +64,6 @@ services:
       PANEL_DOMAIN: "${PANEL_DOMAIN:-ca1.iravand.ir}"
     volumes:
       - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
-      - ${PANEL_TLS_HOST_DIR:-./secrets/tls}:/etc/caddy/tls:ro
       - ./app/static/trust.html:/srv/onboarding/index.html:ro
       - ./app/static/trust.js:/srv/onboarding/trust.js:ro
       - ${CA_ONLINE_HOST_DIR:-./secrets/online}/root-cert.pem:/srv/onboarding/ca-panel-root-ca.pem:ro
