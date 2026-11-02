@@ -89,8 +89,8 @@ CA_DIR=/run/ca
 
 # آدرس پنل و فایل‌های HTTPS
 PANEL_DOMAIN=ca1.iravand.ir
-PANEL_TLS_HOST_DIR=./secrets/tls
 PANEL_TLS_BIND_IP=0.0.0.0
+PANEL_HTTP_BIND_IP=0.0.0.0
 
 # گواهی‌های سرور صادرشده: مستقل از Root/Issuer
 CERT_VALIDITY_DAYS=30
@@ -171,80 +171,28 @@ curl http://127.0.0.1:8080/api/system
 
 سلامت API باید `{"status":"ok"}` باشد و `/api/system` نام‌های واقعی Root/Issuing جدید و fingerprint عمومی Root را نمایش دهد. اگر پنل هنوز گواهی HTTPS ندارد، پورت 8080 عمداً فقط روی localhost است.
 
-## ۷. روش جدید: صدور خودکار گواهی پنل بدون DNS
+## ۷. فعال‌سازی HTTPS عمومی پرتال
 
-برای **خود پنل ca1.iravand.ir** دیگر نیازی نیست رکورد TXT بسازید یا به صفحه صدور بروید. بعد از کامل‌شدن مرحله ۶ و انتقال Root به محل آفلاین، مستقیماً اجرا کنید:
+برای **خود پرتال ca1.iravand.ir** نیازی به صدور leaf از Issuing CA خصوصی یا ثبت رکورد TXT نیست. Caddy از ACME عمومی برای دریافت و تمدید خودکار گواهی HTTPS سایت استفاده می‌کند. رکورد DNS دامنه باید به IP عمومی سرور اشاره کند و TCP پورت‌های ۸۰ و ۴۴۳ از اینترنت قابل دسترسی باشند.
 
-```bash
-cd ~/CA-Panel
-git pull
-bash install.sh --private-https
-curl --noproxy '*' --cacert secrets/online/root-cert.pem \
-  --resolve ca1.iravand.ir:443:127.0.0.1 https://ca1.iravand.ir/healthz
-```
-
-از آنجا که در این راهنما نام فایل Root پیش‌فرض ممکن است `pardis-root-cert.pem` یا `root-cert.pem` باشد، در `--cacert` همان نام واقعی فایل موجود را استفاده کنید. Caddy پورت ۴۴۳ را باز می‌کند. **صدور گواهی برای کاربران عادی از طریق وب هنوز نیازمند رکورد TXT است**. مراحل دستی زیر فقط برای زمانی هستند که شخصاً صدور ZIP را ترجیح می‌دهید.
-
-## ۷. اتصال امن به پنل از رایانه مدیریتی و صدور گواهی HTTPS
-
-روی رایانه مدیریتی یک SSH Tunnel باز کنید:
-
-```bash
-ssh -L 8080:127.0.0.1:8080 USER@SERVER_IP
-```
-
-سپس `http://localhost:8080` را در مرورگر رایانه مدیریتی باز کنید.
-
-داخل پنل، برای **ca1.iravand.ir** درخواست صدور گواهی ایجاد کنید. رکورد TXT که پنل اعلام می‌کند (معمولاً زیر نام `_ca-panel.ca1.iravand.ir`) را در DNS دامنه بسازید و منتظر انتشار DNS باشید؛ پس از تأیید، ZIP یک‌بارمصرف را همان مرتبه نخست دانلود کنید.
-
-ZIP حاوی **کلید خصوصی سایت** است. آن را با کانال امن به Ubuntu منتقل کنید:
-
-```bash
-scp "$HOME/Downloads/ca1.iravand.ir-certificates.zip" USER@SERVER_IP:~/ca1.iravand.ir-certificates.zip
-```
-
-اگر مرورگر نام فایل دیگری ذخیره کرد، از همان نام واقعی استفاده کنید. **دوباره فایل رمزگذاری‌شده Issuing CA را به جای کلید TLS سرور نگذارید.**
-
-## ۸. فعال‌سازی HTTPS با گواهی اختصاصی روی 443
-
-روی Ubuntu:
+پس از انتقال Root private key به محل آفلاین و تکمیل `.env`:
 
 ```bash
 cd ~/CA-Panel
-python3 scripts/setup_private_tls.py --zip "$HOME/ca1.iravand.ir-certificates.zip"
-bash install.sh --private-https
-docker compose --profile private-tls ps
+git pull --ff-only
+python3 scripts/setup_admin.py
+bash install.sh --public-https
+curl --noproxy '*' https://ca1.iravand.ir/healthz
 ```
 
-Caddy تنها `secrets/tls/fullchain.pem` و `secrets/tls/privkey.pem` را می‌خواند؛ نه کلید Issuing و نه کلید Root را. پروفایل `public` (ACME) و `private-tls` را هم‌زمان اجرا نکنید، چون هر دو پورت 443 می‌خواهند.
+گزینه قدیمی `--private-https` برای سازگاری همچنان پذیرفته می‌شود، اما همان ACME عمومی را فعال می‌کند. پروفایل Compose با نام تاریخی `private-tls` حفظ شده است. بررسی سلامت HTTPS از trust store عمومی سیستم انجام می‌شود؛ از `--cacert` برای Root خصوصی استفاده نکنید.
 
-تأیید **بدون غیرفعال‌سازی اعتبارسنجی TLS**:
+## ۸. پرتال عمومی و روند صدور گواهی کاربران
 
-```bash
-curl --noproxy '*' --cacert secrets/online/pardis-root-cert.pem \
-  --resolve ca1.iravand.ir:443:127.0.0.1 \
-  https://ca1.iravand.ir/healthz
-```
+کاربر عمومی از `https://ca1.iravand.ir/` وارد می‌شود و بدون حساب مدیر دامنه را ثبت می‌کند. سامانه یک رکورد TXT تصادفی برای اثبات مالکیت دامنه می‌دهد. پس از انتشار و تأیید TXT، درخواست در صف مدیر قرار می‌گیرد. مدیر از `https://ca1.iravand.ir/login` وارد شده و درخواست را در `/admin/requests` تأیید یا رد می‌کند. فقط پس از تصویب مدیر، صاحب پیوند پیگیری می‌تواند گواهی و بسته کلید خصوصی یک‌بارمصرف را دریافت کند.
 
-باید `{"status":"ok"}` برگردد.
+**تفاوت دو نوع گواهی را در نظر داشته باشید:**
+- TLS خود سایت CA-Panel: از ACME عمومی است و مرورگرها باید آن را به‌طور پیش‌فرض معتبر بدانند.
+- گواهی دامنه کاربران: توسط Private CA ساخته‌شده در این راهنما امضا می‌شود؛ برای اعتماد به آن باید Root CA را با تطبیق SHA-256 مستقل و طبق سیاست دستگاه نصب کرد.
 
-## ۹. DNS و مرورگر اختصاصی Firefox
-
-- یک رکورد `A` (و در صورت نیاز `AAAA`) برای `ca1.iravand.ir` به IP قابل دسترس کاربران ایجاد کنید. اگر استفاده داخلی یا از طریق VPN است، DNS داخلی بهتر است.
-- Root CA **جدید** را با بررسی fingerprint از منبع مورد اعتماد در trust store مرورگر اختصاصی خود نصب کنید؛ اعتماد به Root CA قدیمی به گواهی‌های صادرشده توسط Root جدید منتقل نمی‌شود.
-- مرورگرهای عمومی به‌صورت پیش‌فرض به Root خصوصی شما اعتماد ندارند و هشدار نمایش می‌دهند.
-- پورت TCP 443 را فقط برای شبکه‌های مورد اعتماد باز کنید. Docker publish ممکن است قواعد معمول UFW را دور بزند؛ شبکه ابری، firewall و DOCKER-USER را هم پیکربندی کنید.
-- **CA-Panel احراز هویت داخلی کامل ندارد.** HTTPS به‌تنهایی به معنی مجازبودن همه کاربران برای دسترسی به سرویس صدور نیست. قبل از انتشار اینترنتی، احراز هویت، محدودیت دسترسی، ثبت رخدادها و نظارت اضافه کنید.
-- گواهی سرور به‌طور پیش‌فرض 30 روز اعتبار دارد و Caddy آن را در این حالت خودکار تمدید نمی‌کند؛ برای تمدید مجدد گواهی صادر کرده، ابزار `setup_private_tls.py --replace` را اجرا و `caddy-private` را ریستارت کنید.
-
-## عیب‌یابی
-
-```bash
-docker compose --profile private-tls ps
-docker compose --profile private-tls logs --tail=80 api caddy-private
-sudo ss -lntp | grep ':443'
-```
-
-اگر `bash install.sh` به کلید Root آفلاین اشاره کرد، مرحله ۵ کامل نشده است. اگر `--init-ca` فایل‌ها را قبلاً موجود گزارش کرد، **دوباره CA جدید نسازید**؛ ابتدا وضعیت فایل‌ها را بررسی کنید. گذرواژه CA، فایل کامل .env یا ZIP حاوی کلید خصوصی را در چت و پشتیبانی عمومی ارسال نکنید.
-
-راهنمای مکمل: [FIRST_RUN.md](FIRST_RUN.md) و [PRIVATE_HTTPS.md](PRIVATE_HTTPS.md).
+برای راهنمای نصب Root روی Windows، macOS، iOS/iPadOS، Android، Linux و مرورگرها، صفحه راهنمای Root CA را از `http://ca1.iravand.ir/` باز کنید. این صفحه فقط راهنما و دو فایل عمومی Root را ارائه می‌کند؛ ثبت درخواست، ورود مدیر و صدور فقط روی HTTPS انجام می‌شود.
