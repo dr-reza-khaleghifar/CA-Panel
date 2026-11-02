@@ -1,8 +1,8 @@
 # Operations & security runbook
 
-## Security hardening and protected issuance (current release)
+## Security hardening and public issuance (current release)
 
-**The issuance API is no longer anonymous.** Before exposing this version, enroll the operator using `python3 scripts/setup_admin.py` and deploy with `bash install.sh --private-https`. Authenticated requests require TOTP MFA, a server-side opaque session and CSRF protection; any issuance domain must be on the `CERT_ALLOWED_DOMAINS` allowlist and must still pass DNS TXT verification. Admin login is `/login`. No enrollment means issuance is **fail-closed** with HTTP 503.
+The public portal at `/` supports anonymous customer requests, DNS TXT ownership verification and automatic certificate issuance. It does not expose CA keys or allow users to change issuance policy. The administrator workspace at `/admin` remains protected by TOTP MFA, a server-side opaque session and CSRF protection. Complete `python3 scripts/setup_admin.py` before enabling public issuance; until then `/api/public/*` returns HTTP 503. The administrator must configure `CERT_ALLOWED_DOMAINS` or explicitly opt into `CERT_ALLOW_ANY_DOMAIN=1`. Each public request still requires a fresh TXT challenge and live revalidation at signing time.
 
 Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING.md](SECURITY_HARDENING.md). The software currently supports **one admin**, not enterprise RBAC or HSM-based CA security. Restrict network edge and use independent security review before production use.
 
@@ -19,9 +19,9 @@ Detailed migration, recovery, operation and remaining risks: [SECURITY_HARDENING
 
 - Place service behind HTTPS reverse proxy and do not publish port 8000 publicly. Default binding is `127.0.0.1:8080`.
 - Set `APP_UID`/`APP_GID` to host UID/GID that owns `data/` and `secrets/online/`. On Linux use `id -u`, `id -g`. Ensure `chmod 700 secrets/online`, `chmod 600 secrets/online/issuer-key.pem`, and `chmod 600 .env` (mounted files readable by the application UID). On SELinux hosts, additional volume labeling may be required.
-- Never enable `TRUST_PROXY_HEADERS=1` unless every remote caller passes through a trusted proxy that sanitizes incoming `X-Forwarded-For`. If set, all direct access must be administratively controlled. Defaults to disabled, which can group public clients behind one reverse-proxy IP for rate limiting.
+- The bundled `Caddyfile` and `Caddyfile.private` explicitly overwrite `X-Forwarded-For` with the socket peer address. The Compose default enables `TRUST_PROXY_HEADERS=1` so public rate limits use each client IP. If you replace Caddy with another proxy, enable this only if that proxy sanitizes incoming `X-Forwarded-For`; keep API port 8080 private.
 - Provide a reliable system DNS resolver. DNS TXT propagation and split-horizon DNS may affect verification. DNS spoofing/poisoning can undermine this basic model; use a secure resolver. DNSSEC is not checked.
-- The issuance API now requires a single admin password and TOTP MFA, session and CSRF, plus an explicit domain allowlist. Production internet exposure still needs edge firewall/VPN, external monitoring, operational review and abuse controls. A challenge is necessary to obtain each certificate, but a large anonymous CA can still be abused.
+- Public issuance does not require an end-user account, but administrator enrollment and policy configuration are mandatory. The public endpoints are rate-limited and require DNS TXT proof; this does not eliminate abuse risk. Keep API port 8080 localhost-bound, expose the portal only through trusted HTTPS, use a WAF/edge rate-limit where possible, monitor the global quota and retain an incident-response plan. Administrator endpoints require MFA/session/CSRF.
 - For user-browser trusted HTTPS, use public CA/ACME instead. Installing private CA roots on client machines grants broad trust; do so only under managed policy.
 
 ## Observability & backup
@@ -134,11 +134,11 @@ The active lookup resolver should now show the chosen IP(s). If it reports `MATC
 
 The default `DNS_RESOLVERS=` uses the container's system DNS. Only literal IP addresses are accepted (maximum three). This setting sends DNS queries for certificate challenges to the chosen resolver(s); use trusted resolvers appropriate for your privacy/network requirements. Firewall restrictions may block public DNS over UDP/TCP 53. A cached negative DNS response can temporarily persist after creation, and a new challenge may be needed if the existing one expired (one-hour lifetime). When all resolvers fail the program denies verification (fail closed).
 
-## Auto-issue UI and key download (browser only)
+## Public auto-issue UI and key download
 
-The frontend now generates RSA-2048 + PKCS#10 CSR with Web Crypto, requiring HTTPS or localhost. It signs no certificates locally: domain ownership must be verified via the normal challenge before the server issues a certificate. The CSR, and **not** the private key, goes to the API. The browser creates a ZIP containing a PKCS#8 **unencrypted private key**, leaf CRT, nginx fullchain PEM (leaf + intermediate), issuing CA and public root CA, and local setup instructions. The ZIP is NOT encrypted or backed up by the server. Recommend full-disk encryption, secure storage, and `chmod 600 <domain>.key` after extraction.
+The public portal at `/` uses a DNS TXT challenge and the server-side issuance endpoint. After DNS verification, the API creates the RSA private key and certificate, then places the unencrypted key and public certificate chain in a one-time ZIP held in process memory for at most ten minutes. The private key is not written to SQLite or disk. Protect the downloaded ZIP and extracted key (for example, full-disk encryption and `chmod 600 <domain>.key`).
 
-Some browsers block automatic downloads after asynchronous key generation; the success screen offers a manual ZIP download button. Download the ZIP before closing the page. Neither the API nor the browser can recover a lost key after refresh. Automatic UI issuance **does not mean automatic renewal**. A new challenge and fresh proof are needed for each new certificate. External CSR clients continue to work unchanged.
+The browser receives a one-time bearer URL; it must be downloaded before expiry and must not be shared, logged, previewed or sent to third-party URL scanners. If the link is consumed, lost or expires, the key cannot be recovered; create a fresh DNS challenge and issue a new certificate. Automatic issuance **does not mean automatic renewal**. Manual CSR issuance remains an administrator-protected API path for users who generate their private key off-server.ients continue to work unchanged.
 
 Do not weaken HTTPS or the verification logic to make the UI work from a nonsecure browser context; expose the panel behind Caddy HTTPS in public deployments. A compromised frontend script could steal browser-generated keys, so serve all frontend code over trusted HTTPS and restrict modifications to the repo/static assets.
 

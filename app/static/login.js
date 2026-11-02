@@ -10,7 +10,7 @@ if (location.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].inclu
   fetch('/api/auth/status', {cache:'no-store', credentials:'same-origin'})
     .then(response => response.json())
     .then(data => {
-      if (data.authenticated) location.replace('/');
+      if (data.authenticated) location.replace('/admin');
       else if (!data.configured) showError('حساب مدیر هنوز روی سرور فعال نشده است؛ ابتدا راه‌اندازی اولیه را انجام دهید.');
     }).catch(() => showError('اتصال به سرور برقرار نشد. وضعیت HTTPS و سرویس را بررسی کنید.'));
 }
@@ -38,7 +38,7 @@ form.addEventListener('submit', async event => {
         'ورود انجام نشد؛ نام کاربری، رمز و کد یک‌بارمصرف را بررسی کنید.');
       return;
     }
-    location.replace('/');
+    location.replace('/admin');
   } catch {
     showError('برقراری ارتباط امن با سرور ممکن نشد.');
   } finally {

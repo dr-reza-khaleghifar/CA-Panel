@@ -54,15 +54,25 @@ def test_password_hash_and_totp_validation():
     assert matching_totp_step(seed, "00000", now) is None
 
 
-def test_anonymous_cannot_issue_read_challenges_or_download_secrets(secured):
+def test_public_portal_is_open_but_legacy_admin_routes_remain_protected(secured):
     client, _, _ = secured
     assert client.get("/healthz").status_code == 200
     assert client.get("/api/ca.pem").status_code == 200
     assert client.get("/api/system").status_code == 200
     assert client.get("/api/auth/status").json()["authenticated"] is False
     page = client.get("/")
-    assert page.status_code == 303 and page.headers["location"] == "/login"
+    assert page.status_code == 200 and "portal.js" in page.text
+    admin = client.get("/admin")
+    assert admin.status_code == 303 and admin.headers["location"] == "/login"
     assert client.get("/login").status_code == 200
+
+    # The public workflow is anonymous but still requires DNS ownership proof.
+    created = client.post("/api/public/requests", json={"domain": "example.org"})
+    assert created.status_code == 201, created.text
+    rid = created.json()["request_id"]
+    assert client.post(f"/api/public/requests/{rid}/verify").status_code == 200
+
+    # Legacy/admin endpoints are still protected without an administrator session.
     assert client.post("/api/requests", json={"domain": "example.org"}).status_code == 401
     assert client.get("/api/requests/guess").status_code == 401
     assert client.post("/api/requests/guess/verify").status_code == 401
@@ -171,6 +181,7 @@ def test_unenrolled_admin_fail_closed_and_secrets_never_public(tmp_path):
             "username":"admin", "password":"unconfigured-password-123",
             "code":"123456"}).status_code == 503
         assert client.post("/api/requests", json={"domain":"example.org"}).status_code == 503
+        assert client.post("/api/public/requests", json={"domain":"example.org"}).status_code == 503
         assert client.get("/api/downloads/guess").status_code == 503
         assert "ADMIN_PASSWORD_HASH" not in client.get("/api/system").text
         assert "password" not in client.get("/api/system").text.lower()
@@ -221,6 +232,13 @@ def test_all_domains_opt_in_requires_admin_mfa_and_dns_ownership(tmp_path):
     api.state.dns_checker = lambda *_: False
     with TestClient(api, base_url="https://testserver") as client:
         assert client.post("/api/requests", json={"domain": "other.example.com"}).status_code == 401
+        # The anonymous portal may create a challenge, but cannot verify or sign
+        # unless the matching DNS TXT record is actually visible.
+        public = client.post("/api/public/requests", json={"domain": "other.example.com"})
+        assert public.status_code == 201, public.text
+        public_id = public.json()["request_id"]
+        assert client.post(f"/api/public/requests/{public_id}/verify").status_code == 422
+        assert client.post(f"/api/public/requests/{public_id}/issue-server").status_code == 403
         assert login(client, seed).status_code == 200
         csrf = client.get("/api/auth/status").json()["csrf_token"]
         headers = {"X-CSRF-Token": csrf}

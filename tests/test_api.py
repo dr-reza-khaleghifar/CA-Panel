@@ -262,3 +262,66 @@ def test_downloads_are_cleared_at_shutdown(tmp_path):
         assert response.status_code == 201, response.text
         assert len(api.state.downloads) == 1
     assert not api.state.downloads
+
+
+def test_public_portal_allows_anonymous_dns_verified_auto_issuance(client):
+    # Remove the administrator session: the public portal must not depend on it.
+    client.cookies.clear()
+
+    portal = client.get("/")
+    assert portal.status_code == 200
+    assert "portal.js" in portal.text
+    assert "پرتال عمومی" in portal.text
+    assert client.get("/admin", follow_redirects=False).status_code == 303
+
+    # The legacy/admin API remains protected.
+    assert client.post("/api/requests", json={"domain": "example.org"}).status_code == 401
+    assert client.get("/api/public/unlisted", follow_redirects=False).status_code == 401
+
+    created = client.post("/api/public/requests", json={"domain": "example.org"})
+    assert created.status_code == 201, created.text
+    data = created.json()
+    rid = data["request_id"]
+    assert data["dns_name"] == "_ca-panel.example.org"
+    assert data["dns_value"].startswith("ca-panel-verification=")
+    assert client.get(f"/api/public/requests/{rid}").json()["request_id"] == rid
+
+    verified = client.post(f"/api/public/requests/{rid}/verify")
+    assert verified.status_code == 200
+    assert verified.json()["verified"] is True
+
+    issued = client.post(f"/api/public/requests/{rid}/issue-server")
+    assert issued.status_code == 201, issued.text
+    links = issued.json()
+    assert links["download_url"].startswith("/api/public/downloads/")
+    assert links["certificate_url"].startswith(f"/api/public/requests/{rid}/")
+    assert client.post(f"/api/public/requests/{rid}/issue-server").status_code == 409
+
+    leaf = client.get(links["certificate_url"])
+    assert leaf.status_code == 200
+    assert b"BEGIN CERTIFICATE" in leaf.content
+    assert client.get(links["fullchain_url"]).content.count(b"BEGIN CERTIFICATE") == 2
+    assert client.get(links["issuer_url"]).status_code == 200
+    assert client.get(links["root_url"]).status_code == 200
+
+    bundle = client.get(links["download_url"])
+    assert bundle.status_code == 200
+    assert bundle.headers["cache-control"].startswith("no-store")
+    assert client.get(links["download_url"]).status_code == 404
+
+
+def test_public_issuance_fails_closed_until_admin_setup(tmp_path):
+    create_ca(tmp_path / "secrets", b"long-root-test-passphrase", b"long-issuer-test-passphrase")
+    settings = Settings(
+        db_path=tmp_path / "data" / "panel.db",
+        ca_dir=tmp_path / "secrets" / "online",
+        ca_key_password="long-issuer-test-passphrase",
+        cert_allowed_domains="example.org",
+    )
+    api = create_app(settings)
+    api.state.dns_checker = lambda _name, _value: True
+    with TestClient(api, base_url="https://testserver") as anonymous:
+        assert anonymous.get("/").status_code == 200
+        assert anonymous.get("/api/system").json()["public_issuance_enabled"] is False
+        disabled = anonymous.post("/api/public/requests", json={"domain": "example.org"})
+        assert disabled.status_code == 503

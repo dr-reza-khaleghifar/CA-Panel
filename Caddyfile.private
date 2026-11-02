@@ -24,7 +24,10 @@ https://{$PANEL_DOMAIN} {
     }
 
     handle {
-        reverse_proxy api:8000
+        # Replace any client-supplied X-Forwarded-For value with the socket peer.
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-For {remote_host}
+        }
     }
 }
 

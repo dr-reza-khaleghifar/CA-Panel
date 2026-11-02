@@ -103,9 +103,12 @@ def test_public_config_from_real_ca_and_configured_policy(tmp_path, monkeypatch)
         assert info["issuer_common_name"] == "CA-Panel Online Issuing CA"
         assert info["root_common_name"] == "CA-Panel Offline Root CA"
         assert len(info["root_sha256"]) == 64
+        assert info["public_issuance_enabled"] is True
+        assert info["issuance_scope"] == "administrator-allowlist"
         assert set(info) == {
             "display_name", "organization", "certificate_validity_days",
             "server_key_bits", "challenge_seconds", "download_ttl_seconds",
+            "public_issuance_enabled", "issuance_scope",
             "issuer_common_name", "issuer_expires_at",
             "root_common_name", "root_sha256"
         }
