@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#081326"><meta name="description" content="درخواست عمومی گواهی TLS با اثبات مالکیت دامنه از طریق DNS و بررسی مدیر CA.">
+<title>درخواست گواهی TLS | گواهی دیجیتال ایران</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/public.css?v=1">
+<script src="/static/public.js?v=1" defer></script>
+</head>
+<body>
+<div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
+<div class="page-shell">
+<header class="site-header">
+<a class="brand" href="/" aria-label="گواهی دیجیتال ایران"><span class="brand-mark" aria-hidden="true">✦</span><span><strong>گواهی دیجیتال ایران</strong><small dir="ltr">IRAN CA CENTER</small></span></a>
+<nav class="header-links" aria-label="ناوبری اصلی"><a href="#process">مراحل دریافت</a><a href="#trust">درباره اعتماد</a><a href="/login">ورود مدیر</a></nav>
+</header>
+<main>
+<section class="hero">
+<div class="hero-copy"><span class="eyebrow"><span class="pulse"></span> درگاه عمومی درخواست گواهی</span>
+<h1>برای دامنه‌تان،<br><span>گواهی TLS اختصاصی</span> دریافت کنید.</h1>
+<p>دامنه را ثبت کنید، مالکیت DNS را اثبات کنید و پس از بررسی مدیر CA، گواهی و بسته کلید خصوصی خود را دریافت کنید.</p>
+<div class="hero-points"><span>بدون حساب مدیریتی</span><span>اثبات مالکیت با DNS TXT</span><span>تأیید نهایی توسط مدیر</span></div>
+<a class="primary-link" href="#request">شروع درخواست <span aria-hidden="true">←</span></a></div>
+<div class="hero-visual" aria-hidden="true"><div class="orbit orbit-a"></div><div class="orbit orbit-b"></div>
+<div class="certificate-card"><div class="cert-top"><span>SECURE CERTIFICATE</span><span class="cert-dot"></span></div><div class="cert-shield">✓</div><div class="cert-line long"></div><div class="cert-line"></div><div class="cert-line short"></div><div class="cert-bottom"><span>DOMAIN VERIFIED</span><strong>RSA · TLS</strong></div></div><div class="lock-orb"><span>⌑</span></div></div>
+</section>
+<section class="process-strip" id="process" aria-label="مراحل دریافت گواهی">
+<article><span class="step-index">۰۱</span><strong>ثبت دامنه</strong><small>ساخت درخواست اختصاصی</small></article><article><span class="step-index">۰۲</span><strong>تأیید DNS</strong><small>اثبات کنترل دامنه</small></article><article><span class="step-index">۰۳</span><strong>بررسی مدیر</strong><small>کنترل سیاست صدور</small></article><article><span class="step-index">۰۴</span><strong>دریافت گواهی</strong><small>دانلود امن و یک‌بارمصرف</small></article>
+</section>
+<section class="request-section" id="request">
+<div class="section-heading"><div><span class="eyebrow">NEW CERTIFICATE REQUEST</span><h2>درخواست گواهی جدید</h2><p>فقط یک نام دامنه عمومی وارد کنید؛ بدون مسیر، IP یا wildcard.</p></div><span class="secure-label">اتصال امن HTTPS</span></div>
+<form id="domain-form" class="domain-form"><label for="domain">نام دامنه</label><div class="domain-input-row"><input id="domain" name="domain" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="مثلاً example.com" maxlength="253" required><button id="create-request" type="submit"><span>ثبت درخواست</span><span aria-hidden="true">←</span></button></div><p class="field-hint">با ثبت درخواست، یک رکورد TXT تصادفی مخصوص همین دامنه ساخته می‌شود.</p></form>
+<div id="message" class="message" role="status" aria-live="polite" hidden></div>
+<section id="flow-panel" class="flow-panel" hidden aria-live="polite">
+<div class="flow-header"><div><span class="eyebrow">REQUEST STATUS</span><h3 id="flow-title">درخواست شما</h3></div><span id="status-pill" class="status-pill">در حال بررسی</span></div>
+<div class="request-meta"><div><small>دامنه</small><strong id="request-domain" dir="ltr">—</strong></div><div><small>مهلت اعتبار درخواست</small><strong id="request-expiry">—</strong></div></div>
+<div class="private-link-note"><span>پیوند پیگیری محرمانه</span><button type="button" id="copy-request-link" class="text-button">کپی پیوند</button><small>این پیوند نقش کلید دسترسی به درخواست را دارد؛ آن را فقط نزد خود نگه دارید.</small></div>
+<section id="dns-step" class="flow-step" hidden><div class="flow-step-heading"><span class="step-index">۱</span><div><h4>اثبات مالکیت دامنه</h4><p>رکورد TXT زیر را در DNS دامنه ثبت کنید.</p></div></div>
+<div class="dns-record"><small>نام رکورد (Name / Host)</small><code id="dns-name" dir="ltr"></code><button type="button" data-copy="dns-name">کپی</button></div>
+<div class="dns-record"><small>مقدار رکورد (TXT Value)</small><code id="dns-value" dir="ltr"></code><button type="button" data-copy="dns-value">کپی</button></div>
+<button id="verify-button" type="button" class="primary-button"><span>بررسی رکورد DNS</span><span aria-hidden="true">←</span></button><p class="subtle-note">انتشار DNS ممکن است چند دقیقه زمان ببرد. رکورد را تا پایان بررسی و صدور حذف نکنید.</p></section>
+<section id="review-step" class="flow-step review-state" hidden><span class="review-icon">✓</span><div><h4 id="review-title">مالکیت دامنه تأیید شد</h4><p id="review-copy">درخواست برای بررسی مدیر CA ارسال شده است. وضعیت به‌صورت خودکار به‌روزرسانی می‌شود.</p></div></section>
+<section id="issue-step" class="flow-step" hidden><div class="flow-step-heading"><span class="step-index">۳</span><div><h4>درخواست تأیید شد</h4><p>اکنون می‌توانید گواهی و کلید خصوصی مختص دامنه را دریافت کنید.</p></div></div><button id="issue-button" type="button" class="primary-button"><span>صدور و آماده‌سازی دانلود</span><span aria-hidden="true">←</span></button></section>
+<section id="issued-step" class="flow-step issued-state" hidden><span class="review-icon">✓</span><div><h4>گواهی صادر شد</h4><p id="issued-copy">بسته خصوصی فقط یک‌بار و تا پایان مهلت نمایش‌داده‌شده قابل دانلود است.</p></div><a id="download-button" class="download-button" href="#" rel="nofollow"><span>دانلود بسته گواهی و کلید خصوصی</span><span aria-hidden="true">↓</span></a><p id="download-expiry" class="subtle-note"></p><div class="public-links"><a id="leaf-link" href="#">گواهی سرور</a><a id="fullchain-link" href="#">Full chain</a></div></section>
+<section id="rejected-step" class="flow-step rejected-state" hidden><h4>درخواست توسط مدیر تأیید نشد</h4><p>برای اطلاع از علت و بررسی مجدد، با مدیر سامانه تماس بگیرید. می‌توانید پس از رفع مشکل درخواست تازه‌ای ثبت کنید.</p></section>
+<section id="already-issued-step" class="flow-step" hidden><h4>برای این درخواست قبلاً گواهی صادر شده است.</h4><p>پیوند خصوصی دانلود پس از استفاده، انقضا یا بارگذاری مجدد صفحه قابل بازیابی نیست. برای کلید جدید، درخواست تازه ثبت کنید.</p></section>
+</section>
+</section>
+<section class="trust-grid" id="trust">
+<article class="trust-card"><span class="card-icon">◇</span><h3>درباره نوع گواهی</h3><p>این سامانه یک مرجع صدور خصوصی (Private CA) است. گواهی‌های صادرشده به‌صورت پیش‌فرض در مرورگرهای عمومی مورد اعتماد نیستند و برای استفاده باید Root CA را با بررسی اثر انگشت و طبق سیاست سازمان روی دستگاه نصب کنید.</p><div class="download-roots"><a href="/downloads/ca-panel-root-ca.pem">دریافت Root CA · PEM</a><a href="/downloads/ca-panel-root-ca.cer">دریافت Root CA · CER</a></div></article>
+<article class="trust-card"><span class="card-icon">⌘</span><h3>حفاظت از کلید خصوصی</h3><p>کلید خصوصی سرور هنگام صدور در حافظه ساخته می‌شود و در دیتابیس ذخیره نمی‌شود. فایل ZIP محرمانه، یک‌بارمصرف و دارای مهلت کوتاه دانلود است.</p></article>
+</section>
+</main>
+<footer class="site-footer"><span>© گواهی دیجیتال ایران · Iran CA Center</span><a href="/login">ورود مدیر</a><span dir="ltr">PRIVATE PKI · DNS-VALIDATED ISSUANCE</span></footer>
+</div>
+</body>
+</html>
