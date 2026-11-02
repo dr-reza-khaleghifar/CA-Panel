@@ -345,19 +345,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         path = request.url.path
-        public = (path in ("/healthz", "/login", "/api/system", "/api/ca.pem",
+        public_issuance_api = path.startswith("/api/public/")
+        public = (path in ("/", "/healthz", "/login", "/api/system", "/api/ca.pem",
                            "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
-                  or path.startswith("/static/"))
+                  or path.startswith("/static/") or public_issuance_api)
         csrf = (get_session(settings.db_path, request.cookies.get(SESSION_COOKIE),
                             settings.admin_session_generation)
                 if admin_ready else None)
         request.state.admin_csrf = csrf
-        if not public:
+        if public_issuance_api and not admin_ready:
+            response = JSONResponse(
+                {"detail": "Public issuance is disabled until administrator setup is complete"},
+                status_code=503,
+            )
+        elif not public:
             if not admin_ready:
-                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                response = (RedirectResponse("/login", status_code=303) if path == "/admin"
                             else JSONResponse({"detail": "Administrator enrollment required"}, status_code=503))
             elif csrf is None:
-                response = (RedirectResponse("/login", status_code=303) if path == "/"
+                response = (RedirectResponse("/login", status_code=303) if path == "/admin"
                             else JSONResponse({"detail": "Administrator login required"}, status_code=401))
             elif request.method not in ("GET", "HEAD", "OPTIONS") and not secrets.compare_digest(
                     request.headers.get("x-csrf-token", ""), csrf):
@@ -417,6 +423,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def home():
+        """Public certificate request portal; no administrator session required."""
+        return FileResponse(BASE / "static" / "portal.html", media_type="text/html")
+
+    @app.get("/admin", include_in_schema=False)
+    def admin_home():
+        """Administrator workspace; protected by the middleware above."""
         return FileResponse(BASE / "static" / "index.html", media_type="text/html")
 
     @app.get("/healthz")
@@ -439,6 +451,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "server_key_bits": settings.server_key_bits,
             "challenge_seconds": settings.challenge_seconds,
             "download_ttl_seconds": settings.download_ttl_seconds,
+            "public_issuance_enabled": bool(admin_ready and (issuance_domains or allow_any_domain)),
+            "issuance_scope": "all-public-domains" if allow_any_domain else "administrator-allowlist",
             "issuer_common_name": common_name(issuer),
             "issuer_expires_at": issuer.not_valid_after_utc.isoformat(),
             "root_common_name": common_name(root),
@@ -455,6 +469,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _, issuer, _ = app.state.ca
         return PlainTextResponse(issuer.public_bytes(serialization.Encoding.PEM).decode(), media_type="application/x-pem-file")
 
+    @app.post("/api/public/requests", status_code=201)
     @app.post("/api/requests", status_code=201)
     def new_request(body: DomainInput, request: Request):
         try:
@@ -488,10 +503,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, "Request not found")
         return row
 
+    @app.get("/api/public/requests/{rid}")
     @app.get("/api/requests/{rid}")
     def read_request(rid: str):
         return public_view(get_challenge_or_404(rid))
 
+    @app.post("/api/public/requests/{rid}/verify")
     @app.post("/api/requests/{rid}/verify")
     def verify_request(rid: str):
         row = get_challenge_or_404(rid)
@@ -542,8 +559,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"domain": row["domain"], "certificate_pem": cert_pem, "chain_pem": chain_pem, "fullchain_pem": cert_pem + chain_pem, "expires_at": cert.not_valid_after_utc.isoformat(), "serial_hex": format(cert.serial_number, "x")}
 
 
+    @app.post("/api/public/requests/{rid}/issue-server", status_code=201)
     @app.post("/api/requests/{rid}/issue-server", status_code=201)
-    def issue_server_side(rid: str):
+    def issue_server_side(rid: str, request: Request):
         """Create a new RSA private key on server, issue and offer ONE-TIME ZIP download."""
         row = get_challenge_or_404(rid)
         if not domain_permitted(row["domain"], issuance_domains, allow_any=allow_any_domain):
@@ -599,19 +617,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     raise HTTPException(409, "Challenge expired or certificate already issued")
             app.state.downloads[capability] = (deadline, archive, row["domain"] + "-certificates.zip")
         audit(settings.db_path, "certificate_issued_server", row["domain"])
-        prefix = "/api/requests/" + rid
+        public_prefix = request.url.path.startswith("/api/public/")
+        api_prefix = "/api/public" if public_prefix else "/api"
+        prefix = api_prefix + "/requests/" + rid
         return {
             "domain": row["domain"],
             "serial_hex": serial_hex,
             "expires_at": cert.not_valid_after_utc.isoformat(),
             "download_expires_in_seconds": settings.download_ttl_seconds,
-            "download_url": "/api/downloads/" + capability,
+            "download_url": api_prefix + "/downloads/" + capability,
             "certificate_url": prefix + "/leaf.crt",
             "fullchain_url": prefix + "/fullchain.pem",
             "issuer_url": "/api/issuer.pem",
             "root_url": "/api/ca.pem",
         }
 
+    @app.get("/api/public/downloads/{capability}")
     @app.get("/api/downloads/{capability}")
     def download_private_bundle(capability: str):
         """Bearer capability is unguessable; delete on first use and after ten minutes."""
@@ -630,6 +651,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/api/public/requests/{rid}/leaf.crt")
     @app.get("/api/requests/{rid}/leaf.crt")
     def download_leaf(rid: str):
         row = get_challenge_or_404(rid)
@@ -640,6 +662,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="{row["domain"]}.crt"'}
         )
 
+    @app.get("/api/public/requests/{rid}/fullchain.pem")
     @app.get("/api/requests/{rid}/fullchain.pem")
     def download_fullchain(rid: str):
         row = get_challenge_or_404(rid)
