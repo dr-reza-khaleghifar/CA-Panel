@@ -345,7 +345,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         path = request.url.path
-        public_issuance_api = path.startswith("/api/public/")
+        public_issuance_api = (
+            path == "/api/public/requests"
+            or re.fullmatch(
+                r"/api/public/requests/[A-Za-z0-9_-]{1,100}(?:/(?:verify|issue-server|leaf\\.crt|fullchain\\.pem))?",
+                path,
+            ) is not None
+            or re.fullmatch(r"/api/public/downloads/[A-Za-z0-9_-]{1,100}", path) is not None
+        )
         public = (path in ("/", "/healthz", "/login", "/api/system", "/api/ca.pem",
                            "/api/issuer.pem", "/api/auth/status", "/api/auth/login")
                   or path.startswith("/static/") or public_issuance_api)
