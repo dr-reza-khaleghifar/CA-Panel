@@ -243,7 +243,7 @@ def ensure_public_root_download(online: Path, root_filename: str, *, create: boo
             actual = fingerprint(target, der=True)
             if actual != expected:
                 fail("Existing ca-panel-root-ca.cer does not match the configured Root CA PEM")
-            if target.stat().st_mode & 0o777 != 0o644:
+            if (target.stat().st_mode & 0o777) != 0o644:
                 try:
                     os.chmod(target, 0o644)
                 except PermissionError:
