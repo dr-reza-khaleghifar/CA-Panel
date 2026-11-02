@@ -243,7 +243,12 @@ def ensure_public_root_download(online: Path, root_filename: str, *, create: boo
             actual = fingerprint(target, der=True)
             if actual != expected:
                 fail("Existing ca-panel-root-ca.cer does not match the configured Root CA PEM")
-            os.chmod(target, 0o644)
+            if target.stat().st_mode & 0o777 != 0o644:
+                try:
+                    os.chmod(target, 0o644)
+                except PermissionError:
+                    fail("Root CA CER is valid but not world-readable; run chmod 644 on "
+                         + str(target) + " as its owner/root.")
             return
         if not create:
             fail(f"Missing public Root CA download: {target}")
